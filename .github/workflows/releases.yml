@@ -457,7 +457,7 @@ jobs:
       - name: Adicionar personagens
         if: ${{ matrix.cfg.runner_os == 'android' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+         GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p chars data /tmp/chars
           gh release download chars-v1 --repo "${{ github.repository }}" --pattern "*.zip" --dir /tmp/chars
