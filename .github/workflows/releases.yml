@@ -454,6 +454,7 @@ jobs:
               echo "  $f -> ${max:-none}"
             done
           fi
+      
       - name: Adicionar personagens
         if: ${{ matrix.cfg.runner_os == 'android' }}
         env:
