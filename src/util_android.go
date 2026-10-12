@@ -169,6 +169,11 @@ func selectRenderer(cfgVal string) (Renderer, FontRenderer) {
 }
 
 func getAndroidFilesDir() string {
+	// The wrapper extracts all content to app-private internal storage and
+	// passes that path through nativeOnSDLReady.
+	if baseDir != "" {
+		return baseDir
+	}
 	path := C.SDL_AndroidGetExternalStoragePath()
 	return C.GoString(path)
 }
