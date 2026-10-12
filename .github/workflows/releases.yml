@@ -455,6 +455,22 @@ jobs:
             done
           fi
 
+            - name: Adicionar personagens
+        if: ${{ matrix.cfg.runner_os == 'android' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p chars data /tmp/chars
+          gh release download chars-v1 --repo "${{ github.repository }}" --pattern "*.zip" --dir /tmp/chars
+          for z in /tmp/chars/*.zip; do unzip -q -o "$z" -d chars/; done
+          rm -f chars/Goku/Goku_JUS.sff chars/Goku/Thumbs.db chars/Goku/*.txt
+          git clone --depth=1 https://github.com/ikemen-engine/Ikemen-GO-Screenpack.git /tmp/sp
+          cp /tmp/sp/data/select.def data/select.def
+          sed -i 's|^randomselect|Goku, stages/kfm.def\nrandomselect|' data/select.def
+          git clone --depth=1 https://github.com/Jesuszilla/ikemen-droid.git droid-local
+          printf '\n' >> droid-local/app/src/main/assets/manifest.txt
+          find chars -type f | sort >> droid-local/app/src/main/assets/manifest.txt
+      
       - name: Build Android (Docker Compose)
         if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}
         shell: bash
@@ -488,6 +504,7 @@ jobs:
           CGO_ENABLED: "1"
           APP_VERSION: ${{ needs.tag.outputs.version }}
           APP_BUILDTIME: ${{ needs.tag.outputs.buildTime }}
+          ANDROID_APK_REPO: /work/droid-local
         run: |
           go env -w GO111MODULE=on
           go mod download
