@@ -1,0 +1,47 @@
+# Compila SOMENTE o APK Android e o disponibiliza como artefato.
+# Coloque este arquivo em .github/workflows/android.yml no seu fork do Ikemen-GO.
+name: android-apk
+
+on:
+  workflow_dispatch:
+    inputs:
+      wrapper_repo:
+        description: 'URL do seu fork do ikemen-droid (publico)'
+        required: true
+        default: 'https://github.com/SEU_USUARIO/ikemen-droid.git'
+      wrapper_ref:
+        description: 'Branch do wrapper'
+        required: true
+        default: 'main'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Liberar espaco em disco
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost || true
+          df -h /
+
+      - name: Compilar APK (Docker)
+        env:
+          WRAPPER_REPO: ${{ inputs.wrapper_repo }}
+          WRAPPER_REF: ${{ inputs.wrapper_ref }}
+          APP_VERSION: pessoal
+        run: |
+          chmod +x build/build.sh
+          docker compose -f build/docker/android/docker-compose.yml build android-build
+          docker compose -f build/docker/android/docker-compose.yml run --rm \
+            -e ANDROID_APK_REPO="$WRAPPER_REPO" \
+            -e ANDROID_APK_REF="$WRAPPER_REF" \
+            android-build
+
+      - name: Enviar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ikemen-go-apk
+          path: bin/ikemen-go.apk
+          if-no-files-found: error
