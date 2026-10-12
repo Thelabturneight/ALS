@@ -461,20 +461,47 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p chars data /tmp/chars /tmp/x
+          mkdir -p chars stages sound data /tmp/chars /tmp/x
+          git clone --depth=1 https://github.com/ikemen-engine/Ikemen-GO-Screenpack.git /tmp/sp
           gh release download chars-v1 --repo "${{ github.repository }}" --pattern "*.zip" --dir /tmp/chars
           ls -la /tmp/chars
           for z in /tmp/chars/*.zip; do unzip -q -o "$z" -d /tmp/x/; done
-          if [ -d /tmp/x/chars ]; then cp -a /tmp/x/chars/. chars/; else cp -a /tmp/x/. chars/; fi
-          ls chars
-          test -f chars/Goku/Goku.def
-          rm -f chars/Goku/Goku_JUS.sff chars/Goku/Thumbs.db chars/Goku/*.txt
-          git clone --depth=1 https://github.com/ikemen-engine/Ikemen-GO-Screenpack.git /tmp/sp
+          # Pastas de topo conhecidas vao para a raiz; qualquer outra pasta e tratada como personagem
+          for d in /tmp/x/*/; do
+            n=$(basename "$d")
+            case "$n" in
+              chars|stages|sound|data|font) mkdir -p "$n"; cp -a "$d." "$n/" ;;
+              *) mkdir -p "chars/$n"; cp -a "$d." "chars/$n/" ;;
+            esac
+          done
+          # Arquivos inuteis
+          rm -f chars/Goku/Goku_JUS.sff
+          find chars stages sound -iname Thumbs.db -delete
+          find chars -iname '*.txt' -delete
+          # Nomes com espaco quebram o manifest do build
+          if find chars stages sound -name '* *' | grep -q .; then
+            echo "ERRO: renomeie estes arquivos (sem espacos) e ajuste o .def:"
+            find chars stages sound -name '* *'
+            exit 1
+          fi
+          # select.def
           cp /tmp/sp/data/select.def data/select.def
-          sed -i 's|^randomselect|Goku, stages/kfm.def\nrandomselect|' data/select.def
+          for d in chars/*/; do
+            n=$(basename "$d")
+            if [ -f "$d$n.def" ]; then def="$n.def"; else def=$(cd "$d" && ls *.def 2>/dev/null | head -1); fi
+            [ -n "${def:-}" ] || { echo "AVISO: sem .def em chars/$n"; continue; }
+            sed -i "s|^randomselect|$n/$def, stages/kfm.def\nrandomselect|" data/select.def
+            echo "select.def += $n/$def"
+          done
+          for f in stages/*.def; do
+            [ -f "$f" ] || continue
+            sed -i "/^\[Options\]/i $f" data/select.def
+            echo "select.def (stage) += $f"
+          done
+          # manifest do droid
           git clone --depth=1 https://github.com/Jesuszilla/ikemen-droid.git droid-local
           printf '\n' >> droid-local/app/src/main/assets/manifest.txt
-          find chars -type f | sort >> droid-local/app/src/main/assets/manifest.txt
+          find chars stages sound -type f | sort >> droid-local/app/src/main/assets/manifest.txt
 
       - name: Build Android (Docker Compose)
         if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}
@@ -762,7 +789,7 @@ jobs:
         if: ${{ needs.tag.outputs.releaseKind == 'nightly' || needs.tag.outputs.releaseKind == 'ci-test' }}
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.IKEMEN_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
@@ -806,7 +833,7 @@ jobs:
         if: ${{ needs.tag.outputs.releaseKind == 'tagged' }}
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.IKEMEN_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         working-directory: notes-source
         run: |
           set -euo pipefail
@@ -825,7 +852,7 @@ jobs:
       - name: Publish release
         uses: ncipollo/release-action@v1.21.0
         with:
-          token: ${{ secrets.IKEMEN_TOKEN }}
+          token: ${{ github.token }}
 
           artifactErrorsFailBuild: true
           artifacts: "release-assets/*"
