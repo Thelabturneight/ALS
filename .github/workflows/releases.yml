@@ -819,7 +819,7 @@ jobs:
       - name: Publish release
         uses: ncipollo/release-action@v1.21.0
         with:
-          token: ${{ secrets.IKEMEN_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
           artifactErrorsFailBuild: true
           artifacts: "release-assets/*"
