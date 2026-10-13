@@ -502,6 +502,13 @@ jobs:
           git clone --depth=1 https://github.com/Jesuszilla/ikemen-droid.git droid-local
           printf '\n' >> droid-local/app/src/main/assets/manifest.txt
           find chars stages sound -type f | sort >> droid-local/app/src/main/assets/manifest.txt
+          # repassa o droid local para dentro do container (nao depende de subir o docker-compose.yml)
+          if ! grep -q ANDROID_APK_REPO build/docker/android/docker-compose.yml; then
+            sed -i 's|^\( *\)BUILD_ANDROID_APK:.*|&\n\1ANDROID_APK_REPO: "${ANDROID_APK_REPO:-https://github.com/Jesuszilla/ikemen-droid.git}"|' build/docker/android/docker-compose.yml
+          fi
+          grep -n ANDROID_APK_REPO build/docker/android/docker-compose.yml
+          echo "Arquivos em chars/: $(find chars -type f | wc -l)"
+          echo "Linhas do Goku no manifest: $(grep -c '^chars/Goku/' droid-local/app/src/main/assets/manifest.txt)"
 
       - name: Build Android (Docker Compose)
         if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}
@@ -526,6 +533,12 @@ jobs:
           ls -lah bin/ lib/ || true
           test -f bin/libmain.so
           test -f bin/ikemen-go.apk
+          ls -la bin/ikemen-go.apk
+          n=$(unzip -l bin/ikemen-go.apk | grep -c 'assets/chars/Goku/Goku.def' || true)
+          echo "Goku.def dentro do APK: $n"
+          if [ "$n" -lt 1 ]; then
+            echo "::warning title=Goku fora do APK::O APK foi gerado sem chars/Goku. Veja os passos Adicionar personagens e Build Android."
+          fi
 
       - name: Build (MSYS2)
         if: ${{ runner.os == 'Windows' }}
