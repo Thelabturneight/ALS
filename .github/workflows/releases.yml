@@ -186,39 +186,12 @@ jobs:
     strategy:
       matrix:
         cfg:
-          - runner_os: windows
-            os: windows-2022
-            goos: windows
-            goarch: amd64
-            bin: Ikemen_GO.exe
-            build_target: Win64
-          - runner_os: linux
-            os: ubuntu-24.04
-            goos: linux
-            goarch: amd64
-            bin: Ikemen_GO_Linux
-            build_target: Linux
-          - runner_os: macos
-            os: macos-15
-            goos: darwin
-            goarch: arm64 # amd64
-            bin: Ikemen_GO_MacOSARM # Ikemen_GO_MacOS
-            # Minimum macOS for the binary. Go 1.27 needs 13+, arm64 needs 11+.
-            macos_min: '13.0'
-            build_target: MacOSARM # MacOS
           - runner_os: android
             os: ubuntu-24.04
             goos: android
             goarch: arm64
             bin: ikemen-go.apk
             build_target: Android
-          - runner_os: ios
-            # The ikemen-ios Xcode project needs Xcode 26 (default on macos-26).
-            os: macos-26
-            goos: ios
-            goarch: arm64
-            bin: ikemen-go.ipa
-            build_target: iOS
     runs-on: ${{ matrix.cfg.os }}
     steps:
       - uses: actions/checkout@v7
@@ -505,7 +478,7 @@ jobs:
             echo "select.def (stage) += $f"
           done
           # manifest do droid
-          git clone --depth=1 https://github.com/Jesuszilla/ikemen-droid.git droid-local
+          cp -a ikemen-droid droid-local
           printf '\n' >> droid-local/app/src/main/assets/manifest.txt
           find chars stages sound -type f | sort >> droid-local/app/src/main/assets/manifest.txt
           # repassa o droid local para dentro do container (nao depende de subir o docker-compose.yml)
@@ -515,200 +488,6 @@ jobs:
           grep -n ANDROID_APK_REPO build/docker/android/docker-compose.yml
           echo "Arquivos em chars/: $(find chars -type f | wc -l)"
           echo "Linhas do Goku no manifest: $(grep -c '^chars/Goku/' droid-local/app/src/main/assets/manifest.txt)"
-
-      - name: Personalizar controles
-        if: ${{ matrix.cfg.runner_os == 'android' }}
-        run: |
-          mkdir -p /tmp/ctl
-          cat > /tmp/ctl/virtual_controller.xml <<'XMLEOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:splitMotionEvents="true">
-
-              <!-- D-PAD ANTIGO: escondido (os ids ficam porque o codigo Java os referencia) -->
-              <RelativeLayout
-                  android:id="@+id/dpad_container"
-                  android:layout_width="150dp"
-                  android:layout_height="150dp"
-                  android:layout_alignParentBottom="true"
-                  android:layout_alignParentLeft="true"
-                  android:visibility="gone">
-                  <Button android:id="@+id/dp_up" android:layout_width="50dp" android:layout_height="50dp" android:layout_centerHorizontal="true" android:layout_alignParentTop="true" android:background="#00000000"/>
-                  <Button android:id="@+id/dp_left" android:layout_width="50dp" android:layout_height="50dp" android:layout_centerVertical="true" android:layout_alignParentLeft="true" android:background="#00000000"/>
-                  <Button android:id="@+id/dp_down" android:layout_width="50dp" android:layout_height="50dp" android:layout_centerHorizontal="true" android:layout_alignParentBottom="true" android:background="#00000000"/>
-                  <Button android:id="@+id/dp_right" android:layout_width="50dp" android:layout_height="50dp" android:layout_centerVertical="true" android:layout_alignParentRight="true" android:background="#00000000"/>
-              </RelativeLayout>
-
-              <!-- ANALOGICO PRINCIPAL (envia as direcoes como D-pad). Tamanho e posicao: mude aqui. -->
-              <org.libsdl.app.JoystickOverlay
-                  android:id="@+id/left_analog"
-                  android:layout_width="170dp"
-                  android:layout_height="170dp"
-                  android:layout_alignParentBottom="true"
-                  android:layout_alignParentLeft="true"
-                  android:layout_marginLeft="40dp"
-                  android:layout_marginBottom="45dp"
-                  app:axisX="0" app:axisY="1" />
-
-              <!-- BOTOES DE ATAQUE: grade 3x2. Cada botao tem 64dp; colunas em 0/75/150dp, linhas em 0/75dp. -->
-              <RelativeLayout
-                  android:id="@+id/button_grid"
-                  android:layout_width="214dp"
-                  android:layout_height="139dp"
-                  android:layout_alignParentRight="true"
-                  android:layout_alignParentBottom="true"
-                  android:layout_marginRight="30dp"
-                  android:layout_marginBottom="55dp"
-                  android:splitMotionEvents="true">
-
-                  <Button android:id="@+id/btn_x" android:text="X"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_y" android:text="Y"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:layout_marginLeft="75dp"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_z" android:text="Z"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:layout_marginLeft="150dp"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_a" android:text="A"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:layout_marginTop="75dp"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_b" android:text="B"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:layout_marginLeft="75dp" android:layout_marginTop="75dp"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_c" android:text="C"
-                      android:layout_width="64dp" android:layout_height="64dp"
-                      android:layout_alignParentLeft="true" android:layout_alignParentTop="true"
-                      android:layout_marginLeft="150dp" android:layout_marginTop="75dp"
-                      android:background="@drawable/round_button" />
-
-                  <!-- D e W: removidos da tela (ids mantidos porque o Java os referencia) -->
-                  <Button android:id="@+id/btn_d" android:text="D"
-                      android:layout_width="55dp" android:layout_height="55dp"
-                      android:visibility="gone"
-                      android:background="@drawable/round_button" />
-                  <Button android:id="@+id/btn_w" android:text="W"
-                      android:layout_width="55dp" android:layout_height="55dp"
-                      android:visibility="gone"
-                      android:background="@drawable/round_button" />
-              </RelativeLayout>
-
-              <!-- ANALOGICO DIREITO: removido da tela -->
-              <org.libsdl.app.JoystickOverlay
-                  android:id="@+id/right_analog"
-                  android:layout_width="125dp"
-                  android:layout_height="125dp"
-                  android:layout_alignParentRight="true"
-                  android:layout_alignParentBottom="true"
-                  android:visibility="gone"
-                  app:axisX="2" app:axisY="3" />
-
-              <LinearLayout
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:layout_centerHorizontal="true"
-                  android:layout_alignParentBottom="true"
-                  android:layout_marginBottom="20dp"
-                  android:splitMotionEvents="true">
-                  <Button android:clickable="true" android:focusable="true" android:id="@+id/btn_back" android:text="Menu" android:layout_width="55dp" android:layout_height="55dp" android:background="@drawable/round_button" android:layout_margin="5dp" />
-                  <Button android:clickable="true" android:focusable="true" android:id="@+id/btn_start" android:text="Start" android:layout_width="55dp" android:layout_height="55dp" android:background="@drawable/round_button" android:layout_margin="5dp" />
-              </LinearLayout>
-
-          </RelativeLayout>
-          XMLEOF
-          cat > /tmp/ctl/patch_controls.py <<'PYEOF'
-          import sys, os, shutil
-          root = sys.argv[1]                       # pasta do droid (droid-local)
-          xml_src = sys.argv[2]                    # novo virtual_controller.xml
-          java = os.path.join(root, "app/src/main/java/org/libsdl/app/ControllerOverlay.java")
-          xml_dst = os.path.join(root, "app/src/main/res/layout/virtual_controller.xml")
-
-          def once(s, old, new, label):
-              assert s.count(old) == 1, "trecho nao encontrado (ou repetido): " + label
-              return s.replace(old, new)
-
-          try:
-              s = open(java, encoding="utf-8").read()
-
-              # 1) botoes escondidos nao devem receber toque
-              s = once(s,
-                  "        View v = findViewById(viewId);\n        if (v == null) return;\n\n        int[] loc = new int[2];",
-                  "        View v = findViewById(viewId);\n        if (v == null || v.getVisibility() != View.VISIBLE) return;\n\n        int[] loc = new int[2];",
-                  "checkAndAdd")
-
-              # 2) o D-pad antigo (escondido) nao pode zerar o hat a cada toque
-              s = once(s,
-                  "    private void updateDpadState(MotionEvent event) {\n        int newX = 0, newY = 0;",
-                  "    private void updateDpadState(MotionEvent event) {\n"
-                  "        View dpadView = findViewById(R.id.dpad_container);\n"
-                  "        if (dpadView == null || dpadView.getVisibility() != View.VISIBLE) return;\n"
-                  "        int newX = 0, newY = 0;",
-                  "updateDpadState")
-
-              # 3) analogico esquerdo tambem envia direcoes como D-pad
-              s = once(s,
-                  "        joy.sendToSDL(dx / radius, dy / radius);",
-                  "        joy.sendToSDL(dx / radius, dy / radius);\n"
-                  "        if (v.getId() == R.id.left_analog) updateHatFromStick(dx / radius, dy / radius);",
-                  "updateJoystickLogic")
-              s = once(s,
-                  "        joy.sendToSDL(0, 0);",
-                  "        joy.sendToSDL(0, 0);\n"
-                  "        if (v.getId() == R.id.left_analog) updateHatFromStick(0f, 0f);",
-                  "resetJoystick")
-
-              novo = '''    // ---- Analogico -> D-pad (8 direcoes) ----
-              // STICK_DEADZONE: 0.0 a 1.0. Quanto maior, mais o analogico precisa ser puxado para registrar.
-              private static final float STICK_DEADZONE = 0.35f;
-
-              private void updateHatFromStick(float nx, float ny) {
-                  int newX = 0, newY = 0;
-                  float mag = (float) Math.sqrt(nx * nx + ny * ny);
-                  if (mag > STICK_DEADZONE) {
-                      double angle = Math.toDegrees(Math.atan2(ny, nx));
-                      if (angle < 0) angle += 360;
-                      // Mesmos setores do D-pad: cardeais 30 graus, diagonais 60 graus
-                      if (angle >= 345 || angle < 15)        newX = 1;
-                      else if (angle >= 15  && angle < 75)   { newX = 1;  newY = 1; }
-                      else if (angle >= 75  && angle < 105)  newY = 1;
-                      else if (angle >= 105 && angle < 165)  { newX = -1; newY = 1; }
-                      else if (angle >= 165 && angle < 195)  newX = -1;
-                      else if (angle >= 195 && angle < 255)  { newX = -1; newY = -1; }
-                      else if (angle >= 255 && angle < 285)  newY = -1;
-                      else if (angle >= 285 && angle < 345)  { newX = 1;  newY = -1; }
-                  }
-                  if (newX != hatX || newY != hatY) {
-                      hatX = newX;
-                      hatY = newY;
-                      SDLControllerManager.onNativeHat(virtualDeviceId, 0, hatX, hatY);
-                  }
-              }
-
-          '''
-              s = once(s, "    private int dpToPx(int dp) {", novo + "    private int dpToPx(int dp) {", "dpToPx")
-
-              xml = open(xml_src, encoding="utf-8").read()
-          except Exception as e:
-              print("::warning title=Controles::patch nao aplicado, usando controles originais: %s" % e)
-              sys.exit(0)
-
-          open(java, "w", encoding="utf-8", newline="\n").write(s)
-          open(xml_dst, "w", encoding="utf-8", newline="\n").write(xml)
-          print("controles personalizados aplicados")
-          PYEOF
-          python3 /tmp/ctl/patch_controls.py droid-local /tmp/ctl/virtual_controller.xml
 
       - name: Build Android (Docker Compose)
         if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}

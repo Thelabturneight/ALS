@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_folder_str">Selecione Pasta do Jogo</string>
+    <string name="first_run_dialog_title">Primeira Execução</string>
+    <string name="first_run_dialog_msg">Extraindo arquivos do jogo… Por favor aguarde.</string>
+    <string name="extraction_error_title">Erro de Extração</string>
+    <string name="exit_str">Sair</string>
+    <string name="updating_files_title">Atualizando Arquivos</string>
+    <string name="updating_files_msg">Por favor espere enquanto arquivos de engine são sincronizados…</string>
+    <string name="update_error_title">Erro de Atualização</string>
+
+    <!-- Configuracoes dos controles touch -->
+    <string name="touch_settings_title">Controles touch</string>
+    <string name="touch_opacity">Opacidade: %1$d%%</string>
+    <string name="touch_size">Tamanho: %1$d%%</string>
+    <string name="touch_tolerance">Tolerância de toque: %1$d dp</string>
+    <string name="touch_edit_layout">Editar layout</string>
+    <string name="touch_reset">Restaurar</string>
+    <string name="touch_reset_confirm">Restaurar o layout e as configurações padrão dos controles?</string>
+    <string name="touch_close">Fechar</string>
+    <string name="touch_done">Concluir</string>
+    <string name="touch_options">Opções</string>
+    <string name="touch_edit_hint">Arraste um controle para mover. Toque em um controle para ajustar.</string>
+    <string name="touch_visible">Mostrar este controle</string>
+    <string name="touch_sends">Tecla enviada</string>
+    <string name="touch_icon">Ícone</string>
+    <string name="touch_ctl_dpad">D-pad</string>
+    <string name="touch_ctl_analog">Analógico</string>
+    <string name="touch_ctl_button">Botão %1$s</string>
+    <string name="touch_icon_punch">Soco</string>
+    <string name="touch_icon_palm">Mão aberta</string>
+    <string name="touch_icon_ki">Bola de energia</string>
+    <string name="touch_icon_run">Corrida</string>
+    <string name="touch_icon_burst">Explosão</string>
+    <string name="touch_icon_aura">Aura</string>
+    <string name="touch_icon_menu">Menu</string>
+</resources>

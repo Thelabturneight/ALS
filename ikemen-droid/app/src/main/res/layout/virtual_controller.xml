@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Todos os controles ficam como filhos diretos deste layout. Tamanho, posicao,
+  opacidade, icone e tecla enviada sao aplicados em tempo de execucao por
+  ControllerOverlay (menu de configuracao dentro do jogo).
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:splitMotionEvents="true">
+
+    <ImageView android:id="@+id/dpad_container"
+        android:layout_width="160dp" android:layout_height="160dp"
+        android:src="@drawable/dpad_base" android:scaleType="fitCenter"
+        android:contentDescription="@null" />
+
+    <org.libsdl.app.JoystickOverlay
+        android:id="@+id/left_analog"
+        android:layout_width="120dp" android:layout_height="120dp"
+        android:visibility="gone"
+        app:axisX="0" app:axisY="1" />
+
+    <ImageView android:id="@+id/btn_a" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_punch" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/btn_b" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_palm" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/btn_c" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_ki" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/btn_y" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_run" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/btn_x" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_burst" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/btn_start" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_aura" android:scaleType="fitCenter" android:contentDescription="@null" />
+
+    <!-- Escondidos por padrao; podem ser ativados nas configuracoes -->
+    <ImageView android:id="@+id/btn_z" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_punch" android:scaleType="fitCenter" android:contentDescription="@null"
+        android:visibility="gone" />
+    <ImageView android:id="@+id/btn_d" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_palm" android:scaleType="fitCenter" android:contentDescription="@null"
+        android:visibility="gone" />
+    <ImageView android:id="@+id/btn_w" android:layout_width="68dp" android:layout_height="68dp"
+        android:src="@drawable/btn_ki" android:scaleType="fitCenter" android:contentDescription="@null"
+        android:visibility="gone" />
+
+    <ImageView android:id="@+id/btn_back" android:layout_width="44dp" android:layout_height="44dp"
+        android:src="@drawable/btn_menu" android:scaleType="fitCenter" android:contentDescription="@null" />
+
+    <!-- Engrenagem: segure por ~0,6 s para abrir as configuracoes dos controles -->
+    <TextView android:id="@+id/btn_gear"
+        android:layout_width="32dp" android:layout_height="32dp"
+        android:text="⚙" android:textColor="#FFFFFFFF" android:textSize="16sp"
+        android:gravity="center"
+        android:background="@drawable/round_button" />
+
+</RelativeLayout>
