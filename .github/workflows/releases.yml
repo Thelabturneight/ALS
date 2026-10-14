@@ -478,7 +478,7 @@ jobs:
             echo "select.def (stage) += $f"
           done
           # manifest do droid
-          cp -a ikemen-droid droid-local
+          git clone --depth=1 https://github.com/Thelabturneight/ikemen-droid.git droid-local
           printf '\n' >> droid-local/app/src/main/assets/manifest.txt
           find chars stages sound -type f | sort >> droid-local/app/src/main/assets/manifest.txt
           # repassa o droid local para dentro do container (nao depende de subir o docker-compose.yml)
