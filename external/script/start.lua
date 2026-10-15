@@ -976,15 +976,26 @@ function start.f_drawPortraits(t_portraits, side, t, subname, last, iconDone)
 	end
 end
 
--- Touch on the character grid: a single tap on a cell moves the cursor there and confirms it.
+-- Touch on the character grid: drag the finger to slide the cursor across the cells;
+-- a quick tap (no drag) on a cell moves the cursor there and confirms it.
+-- Returns cellX, cellY (0-based), released (finger lifted this frame), dragged (finger moved since touching down).
 function start.f_touchCell(selX, selY, side)
 	local down, pressed, released, mx, my = getTouch()
 	if not (down or pressed or released) then
+		start.touchOrigin = nil
 		return nil
 	end
 	touchClaim()
-	if not released then
-		return nil
+	if pressed or start.touchOrigin == nil then
+		start.touchOrigin = {mx, my, false}
+	end
+	local o = start.touchOrigin
+	if not o[3] and (math.abs(mx - o[1]) > 8 or math.abs(my - o[2]) > 8) then
+		o[3] = true
+	end
+	local dragged = o[3]
+	if released then
+		start.touchOrigin = nil
 	end
 	local size = motif.select_info.cell.size
 	local px, py = motif.select_info.pos[1], motif.select_info.pos[2]
@@ -1000,7 +1011,7 @@ function start.f_touchCell(selX, selY, side)
 						local usable = (c.char ~= nil or motif.select_info.moveoveremptyboxes) and c.skip ~= 1 and c.hidden ~= 2
 							and (gameOption('Options.Team.Duplicates') or c.char == 'randomselect' or not t_reservedChars[side][c.char_ref])
 						if usable then
-							return x - 1, y - 1
+							return x - 1, y - 1, released, dragged
 						end
 						return nil
 					end
@@ -1025,16 +1036,21 @@ function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 			start.touchConfirm = true
 			return selX, selY
 		end
-		local tx, ty = start.f_touchCell(selX, selY, side)
+		local tx, ty, released, dragged = start.f_touchCell(selX, selY, side)
 		if tx ~= nil then
-			if tx == selX and ty == selY then
-				start.touchConfirm = true
-			else
-				-- Single tap: move to the tapped cell now and confirm it on the next frame.
-				if snd ~= nil then
-					sndPlay(motif.Snd, snd[1], snd[2])
+			local changed = tx ~= selX or ty ~= selY
+			if changed and snd ~= nil then
+				sndPlay(motif.Snd, snd[1], snd[2])
+			end
+			if released and not dragged then
+				if changed then
+					-- Single tap on another cell: move now, confirm on the next frame.
+					start.touchConfirmPending = true
+				else
+					start.touchConfirm = true
 				end
-				start.touchConfirmPending = true
+			end
+			if changed then
 				return tx, ty
 			end
 		end
@@ -3484,6 +3500,9 @@ end
 --===========================================================
 -- Draw Palette Menu
 --===========================================================
+start.palMenuLabel = 'Forma' -- label shown above the palette number
+start.palArrowGap = 28 -- distance (motif units) of the < > arrows from the palette number
+
 function start.f_palMenuDraw(side, member, curIdx, validIdx ,maxIdx)
 	local charData = start.f_getCharData(start.p[side].t_selTemp[member].ref)
 	if not charData or not charData.pal then return end
@@ -3494,12 +3513,23 @@ function start.f_palMenuDraw(side, member, curIdx, validIdx ,maxIdx)
 	local displayText = (curIdx == maxIdx) and pCfg.palmenu.random.text or tostring(validIdx)
 	-- bg
 	main.f_animPosDraw(pCfg.palmenu.bg.AnimData)
+	-- draw touch arrows around the number (only when there is more than one palette to browse)
+	if maxIdx > 2 then
+		local ts = pCfg.palmenu.number.TextSpriteData
+		for _, a in ipairs({{'<', -start.palArrowGap}, {'>', start.palArrowGap}}) do
+			textImgReset(ts)
+			textImgSetText(ts, a[1])
+			textImgAddPos(ts, a[2], 0)
+			textImgDraw(ts)
+		end
+	end
 	-- draw number
 	textImgReset(pCfg.palmenu.number.TextSpriteData)
 	textImgSetText(pCfg.palmenu.number.TextSpriteData, displayText)
 	textImgDraw(pCfg.palmenu.number.TextSpriteData)
 	-- draw text
 	textImgReset(pCfg.palmenu.text.TextSpriteData)
+	textImgSetText(pCfg.palmenu.text.TextSpriteData, start.palMenuLabel) -- overrides the screenpack's "Color"/"Cor"
 	textImgDraw(pCfg.palmenu.text.TextSpriteData)
 end
 
@@ -3601,6 +3631,26 @@ function start.f_palMenu(side, cmd, player, member, selectState)
 	local maxIdx = #validPals + 1
 	start.p[side].inPalMenu = true
 
+	-- touch: tap the < or > arrows beside the palette number to browse (swiping also works)
+	local touchNext, touchPrev = false, false
+	if maxIdx > 2 then
+		local down, pressed, released, mx, my = getTouch()
+		if down or pressed or released then
+			local nx, ny = textImgGetPos(pCfg.palmenu.number.TextSpriteData)
+			local gap = start.palArrowGap
+			if math.abs(my - (ny - 8)) < 30 then
+				local left = mx >= nx - gap - 40 and mx < nx - 6
+				local right = mx > nx + 6 and mx <= nx + gap + 40
+				if left or right then
+					touchClaim()
+					if released then
+						touchPrev, touchNext = left, right
+					end
+				end
+			end
+		end
+	end
+
 	-- accept selection
 	local autoConfirm = #validPals <= 1
 	if autoConfirm or getInput(cmd, motif.select_info['p' .. side].palmenu.done.key) or timerSelect == -1 then
@@ -3641,7 +3691,7 @@ function start.f_palMenu(side, cmd, player, member, selectState)
 			sndPlay(motif.Snd, motif.select_info['p' .. side].palmenu.done.snd[1], motif.select_info['p' .. side].palmenu.done.snd[2])
 		end
 	 -- next palette
-	elseif getInput(cmd, motif.select_info['p' .. side].palmenu.next.key) then
+	elseif touchNext or getInput(cmd, motif.select_info['p' .. side].palmenu.next.key) then
 		curIdx = (curIdx == maxIdx) and 1 or curIdx + 1
 		st.currentIdx = curIdx
 		if curIdx < maxIdx then
@@ -3649,7 +3699,7 @@ function start.f_palMenu(side, cmd, player, member, selectState)
 		end
 		sndPlay(motif.Snd, motif.select_info['p' .. side].palmenu.value.snd[1], motif.select_info['p' .. side].palmenu.value.snd[2])
 	-- previous palette
-	elseif getInput(cmd, motif.select_info['p' .. side].palmenu.previous.key) then
+	elseif touchPrev or getInput(cmd, motif.select_info['p' .. side].palmenu.previous.key) then
 		curIdx = (curIdx == 1) and maxIdx or curIdx - 1
 		st.currentIdx = curIdx
 		if curIdx < maxIdx then
