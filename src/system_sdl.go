@@ -429,6 +429,12 @@ func (w *Window) pollEvents() {
 			}
 		case sdl.QuitEvent:
 			w.closeflag = true
+		case sdl.TouchFingerEvent:
+			touchOnFinger(t)
+		case sdl.MouseButtonEvent:
+			touchOnMouseButton(t)
+		case sdl.MouseMotionEvent:
+			touchOnMouseMotion(t)
 		case sdl.KeyboardEvent:
 			if t.State == sdl.PRESSED {
 				OnKeyPressed(t.Keysym.Sym, t.Keysym.Mod)

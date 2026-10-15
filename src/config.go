@@ -187,6 +187,8 @@ type Config struct {
 		AudioDucking         bool    `ini:"AudioDucking"`
 		AudioResampleQuality int     `ini:"AudioResampleQuality"`
 		FocusLossVolume      int     `ini:"FocusLossVolume"`
+		NormalizeChars       bool    `ini:"NormalizeChars"`
+		NormalizeTarget      int     `ini:"NormalizeTarget"`
 	} `ini:"Sound"`
 	Arcade struct {
 		AI struct {
@@ -370,6 +372,7 @@ func (c *Config) normalize() {
 	c.SetValueUpdate("Input.UiRepeatDelay", int(Max(int32(c.Input.UiRepeatDelay), 0)))
 	c.SetValueUpdate("Input.UiRepeatRate", int(Max(int32(c.Input.UiRepeatRate), 1)))
 	c.SetValueUpdate("Sound.AudioResampleQuality", Clamp(c.Sound.AudioResampleQuality, 1, 16))
+	c.SetValueUpdate("Sound.NormalizeTarget", int(Clamp(int32(c.Sound.NormalizeTarget), -40, -6)))
 	c.SetValueUpdate("Sound.MaxBGMVolume", int(Clamp(int32(c.Sound.MaxBGMVolume), 100, 250)))
 	c.SetValueUpdate("Sound.PanningRange", Clamp(c.Sound.PanningRange, 0, 100))
 	c.SetValueUpdate("Sound.PauseMasterVolume", int(Clamp(int32(c.Sound.PauseMasterVolume), 0, 100)))

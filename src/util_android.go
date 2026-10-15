@@ -200,3 +200,9 @@ func Logcat(s string) {
 	C.__android_log_write(C.ANDROID_LOG_INFO, C.CString("ikemen"), cs)
 	C.free(unsafe.Pointer(cs))
 }
+
+// mobileSend sends a message to SDLActivity.onUnhandledMessage (see ikemen-droid).
+// SDL reserves commands below 0x8000, so user commands start there.
+func mobileSend(cmd int, param int) {
+	C.SDL_AndroidSendMessage(C.Uint32(0x8000+cmd), C.int(param))
+}

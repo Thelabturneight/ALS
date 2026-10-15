@@ -3452,6 +3452,7 @@ func loadMovelists(def string, is IniSection) map[int]string {
 }
 
 type CharGlobalInfo struct {
+	normGain           float32 // loudness normalization applied to this character's sounds (1 = none)
 	def                string
 	name               string
 	nameLow            string
@@ -4701,6 +4702,7 @@ func (c *Char) load(def string, gi *CharGlobalInfo) error {
 	} else {
 		gi.snd = newSnd()
 	}
+	gi.normGain = charNormGain(gi.snd)
 
 	// Load each declared font index into the font map.
 	for idx, spec := range fntSpecs {
@@ -6719,7 +6721,7 @@ func (c *Char) playSound(params *PlaySndParams) {
 		if current_ffx != "" {
 			ch.SetVolume(float32(vol * 64 / 25))
 		} else {
-			ch.SetVolume(float32(c.gi().data.volume * vol / 100))
+			ch.SetVolume(float32(c.gi().data.volume*vol/100) * c.gi().normGainOrOne())
 		}
 
 		if params.channel >= 0 {
@@ -15066,4 +15068,11 @@ type Platform struct {
 
 	localScale float32
 	ownerID    int32
+}
+
+func (gi *CharGlobalInfo) normGainOrOne() float32 {
+	if gi.normGain <= 0 {
+		return 1
+	}
+	return gi.normGain
 }

@@ -711,6 +711,10 @@ type Sound struct {
 	wavData []byte
 	format  beep.Format
 	length  int
+	// Loudness statistics gathered while the sound is decoded at load time (see volume_norm.go)
+	activeSq     float64 // sum of squared samples above the silence threshold
+	activeFrames int     // number of samples above the silence threshold
+	peak         float32 // highest absolute sample
 }
 
 func readSound(f io.ReadSeekCloser, size uint32) (*Sound, error) {
@@ -729,6 +733,9 @@ func readSound(f io.ReadSeekCloser, size uint32) (*Sound, error) {
 	// Check if the file can be fully played
 	// Run a decode test and catch any panics.
 	var recovered interface{}
+	var activeSq float64
+	var activeFrames int
+	var peak float32
 	func() {
 		defer func() {
 			// Catch any panic that occurs inside this anonymous function.
@@ -741,6 +748,17 @@ func readSound(f io.ReadSeekCloser, size uint32) (*Sound, error) {
 		var samples [512][2]float64
 		for {
 			n, ok := s.Stream(samples[:])
+			for i := 0; i < n; i++ {
+				m := (samples[i][0] + samples[i][1]) / 2
+				a := math.Abs(m)
+				if p := float32(math.Max(math.Abs(samples[i][0]), math.Abs(samples[i][1]))); p > peak {
+					peak = p
+				}
+				if a > normSilenceThreshold {
+					activeSq += m * m
+					activeFrames++
+				}
+			}
 			if n == 0 || !ok {
 				// When the end is reached normally.
 				if s.Err() == nil && s.Position() >= s.Len() {
@@ -759,7 +777,7 @@ func readSound(f io.ReadSeekCloser, size uint32) (*Sound, error) {
 	if recovered != nil {
 		return nil, nil // If sound wasn't able to be fully played, we disable it to avoid engine freezing
 	}
-	return &Sound{wavData, wavfmt, s.Len()}, nil
+	return &Sound{wavData: wavData, format: wavfmt, length: s.Len(), activeSq: activeSq, activeFrames: activeFrames, peak: peak}, nil
 }
 
 func (s *Sound) GetStreamer() beep.StreamSeeker {

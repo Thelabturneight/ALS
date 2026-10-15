@@ -827,7 +827,9 @@ func (s *System) eventUpdate() bool {
 	for _, v := range s.shortcutScripts {
 		v.Activate = false
 	}
+	touch.beginFrame()
 	s.window.pollEvents()
+	touch.generic()
 	s.gameEnd = s.window.shouldClose()
 	return !s.gameEnd
 }
@@ -1381,6 +1383,10 @@ func (s *System) uiConsumeTokenThisFrame(controller int, tok string) bool {
 // Supported keys: B, D, F, U, L, R, a, b, c, x, y, z, s, d, w, m
 // D/U/B/F also recognize LS axis tokens: D -> LS_Y+, U -> LS_Y-, B -> LS_X-, F -> LS_X+.
 func (s *System) uiRawInput(btns []string, controllerIdx int) bool {
+	// Virtual keys coming from touch (menus / character select)
+	if touch.take(btns, controllerIdx) {
+		return true
+	}
 	checkOne := func(i int, cl *CommandList) bool {
 		if cl == nil || cl.Buffer == nil {
 			return false

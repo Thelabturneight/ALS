@@ -891,6 +891,7 @@ func luaKeyToString(k lua.LValue) string {
 func systemScriptInit(l *lua.LState) {
 	triggerRedirection(l)
 	triggerFunctions(l)
+	touchScriptInit(l)
 	luaRegister(l, "addChar", func(l *lua.LState) int {
 		/*Add a character definition to the select screen.
 		@function addChar
@@ -2841,11 +2842,13 @@ func systemScriptInit(l *lua.LState) {
 			if sys.loader.state == LS_Loading {
 				sys.loader.reset()
 			}
+			mobileSetMode(0) // back to menus: show touch menu instead of the fight pad
 		}()
 		sys.keyString = ""
 		sys.keyInput = KeyUnknown
 		sys.luaDiscardDrawQueue()
 		sys.gameRunning = true
+		mobileSetMode(1) // fight: show the virtual pad
 		sys.escPending = false
 		sys.motif.fadeIn.reset()
 		sys.motif.fadeOut.reset()

@@ -14165,7 +14165,7 @@ func (sc modifySnd) Run(c *Char, _ []int32) bool {
 			vo = (vo + float32(exp[0].evalI(c))*(25.0/128.0)) * (128.0 / 25.0)
 			volumeSet = true
 		case modifySnd_volumescale:
-			vo = float32(crun.gi().data.volume * exp[0].evalI(c) / 100)
+			vo = float32(crun.gi().data.volume*exp[0].evalI(c)/100) * crun.gi().normGainOrOne()
 			volumeSet = true
 		case modifySnd_freqmul:
 			fr = Clamp(exp[0].evalF(c), 0.01, 5)
