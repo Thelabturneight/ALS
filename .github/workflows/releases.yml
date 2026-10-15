@@ -434,7 +434,7 @@ jobs:
             done
           fi
 
-      - name: Adicionar personagens
+    #  - name: Adicionar personagens
         if: ${{ matrix.cfg.runner_os == 'android' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -454,7 +454,7 @@ jobs:
             esac
           done
           # Arquivos inuteis
-          rm -f chars/Goku/Goku_JUS.sff
+          rm -f chars/Goku
           find chars stages sound -iname Thumbs.db -delete
           find chars -iname '*.txt' -delete
           # Nomes com espaco quebram o manifest do build
