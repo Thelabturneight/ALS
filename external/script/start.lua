@@ -1017,18 +1017,25 @@ function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 	local tmpY = selY
 	-- touch (first player only)
 	if dir == nil and (cmd == 1 or cmd == -1) then
+		-- A tap on another cell moved the cursor on the previous frame: confirm it now, as a second
+		-- press on the highlighted cell would (the cursor must have settled before 'a' is read).
+		if start.touchConfirmPending then
+			start.touchConfirmPending = false
+			touchPress('a')
+			return selX, selY
+		end
 		local tx, ty = start.f_touchCell(selX, selY, side)
 		if tx ~= nil then
-			-- Single tap: move to the tapped cell (if different) and confirm it right away.
-			if tx ~= selX or ty ~= selY then
+			if tx == selX and ty == selY then
+				touchPress('a')
+			else
+				-- Single tap: move to the tapped cell now and confirm it on the next frame.
 				if snd ~= nil then
 					sndPlay(motif.Snd, snd[1], snd[2])
 				end
-				selX, selY = tx, ty
-				tmpX, tmpY = tx, ty
+				start.touchConfirmPending = true
+				return tx, ty
 			end
-			touchPress('a')
-			return selX, selY
 		end
 	end
 	local found = false
@@ -1922,6 +1929,7 @@ end
 
 --resets various data
 function start.f_selectReset(hardReset, preserveProgress)
+	start.touchConfirmPending = false
 	esc(false)
 	if not preserveProgress then
 		resetGameStats()
@@ -2749,7 +2757,18 @@ local function cancelPreviousSide(side)
 end
 
 start.needUpdateDrawList = false
+-- Android: the on-screen Back button exists only on the character select screen.
 function start.f_selectScreen()
+	touchBackVisible(true)
+	local ok, ret = pcall(start.f_selectScreenImpl)
+	touchBackVisible(false)
+	if not ok then
+		error(ret, 0)
+	end
+	return ret
+end
+
+function start.f_selectScreenImpl()
 	if (not main.selectMenu[1] and not main.selectMenu[2]) or selScreenEnd then
 		return true
 	end
