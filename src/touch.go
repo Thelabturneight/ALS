@@ -26,6 +26,9 @@ import (
 // Mouse id SDL uses for events synthesized from touch (SDL_TOUCH_MOUSEID).
 const touchMouseID uint32 = 0xFFFFFFFF
 
+// SDL_BUTTON_LEFT (go-sdl2 does not export it under this name).
+const touchButtonLeft uint8 = 1
+
 // Commands sent to the Android activity (SDLActivity.onUnhandledMessage).
 const (
 	mobileCmdMode   = 1 // param: 0 = menus, 1 = fight
@@ -193,7 +196,7 @@ func touchOnFinger(e sdl.TouchFingerEvent) {
 
 // Real mouse only (touch-synthesized mouse events are ignored). Handy for testing on desktop.
 func touchOnMouseButton(e sdl.MouseButtonEvent) {
-	if e.Which == touchMouseID || e.Button != sdl.BUTTON_LEFT {
+	if e.Which == touchMouseID || e.Button != touchButtonLeft {
 		return
 	}
 	nx, ny := touchNormalizePixels(e.X, e.Y)
