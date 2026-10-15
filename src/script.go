@@ -6834,6 +6834,38 @@ func systemScriptInit(l *lua.LState) {
 		l.Push(lua.LNumber(ts.TextWidth(strArg(l, 2))))
 		return 1
 	})
+	luaRegister(l, "textImgGetBounds", func(*lua.LState) int {
+		/*Horizontal extent of a text, in motif localcoord units, as it would be drawn at the sprite's
+		initial position plus dx. Used by touch code to accept taps only on top of the text.
+		@function textImgGetBounds
+		@tparam TextSprite ts Text sprite userdata.
+		@tparam string text Text to measure.
+		@tparam[opt=0] float32 dx X offset added to the initial position.
+		@treturn float32 left Left edge.
+		@treturn float32 right Right edge.*/
+		ts, ok := toUserData(l, 1).(*TextSprite)
+		if !ok {
+			userDataError(l, 1, ts)
+		}
+		sx := float32(math.Abs(float64(ts.scaleInit[0])))
+		if sx == 0 {
+			sx = 1
+		}
+		w := float32(ts.TextWidth(strArg(l, 2))) * sx
+		x := ts.offsetInit[0]
+		if !nilArg(l, 3) {
+			x += float32(numArg(l, 3))
+		}
+		left := x
+		if ts.align == 0 {
+			left = x - w/2
+		} else if ts.align < 0 {
+			left = x - w
+		}
+		l.Push(lua.LNumber(left))
+		l.Push(lua.LNumber(left + w))
+		return 2
+	})
 	luaRegister(l, "textImgNew", func(*lua.LState) int {
 		/*Create a new empty text sprite.
 		@function textImgNew
