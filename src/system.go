@@ -1385,6 +1385,9 @@ func (s *System) uiConsumeTokenThisFrame(controller int, tok string) bool {
 func (s *System) uiRawInput(btns []string, controllerIdx int) bool {
 	// Virtual keys coming from touch (menus / character select)
 	if touch.take(btns, controllerIdx) {
+		// Touch counts as player 1's controller. Menus such as Training call
+		// remapInput(1, getLastInputController()) and would crash with -1.
+		s.lastInputController = 0
 		return true
 	}
 	checkOne := func(i int, cl *CommandList) bool {
