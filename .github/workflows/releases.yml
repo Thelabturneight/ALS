@@ -434,6 +434,16 @@ jobs:
             done
           fi
           
+      - name: Check out ikemen-droid (Android wrapper)
+        if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}
+        uses: actions/checkout@v7
+        with:
+          # Lands in $GITHUB_WORKSPACE/droid-local, which the compose file
+          # bind-mounts as /work/droid-local inside the build container.
+          repository: ${{ github.repository_owner }}/ikemen-droid
+          ref: main
+          path: droid-local
+
       - name: Build Android (Docker Compose)
         if: ${{ matrix.cfg.runner_os == 'android' && (github.event_name != 'workflow_dispatch' || github.event.inputs.buildAndroidApk != 'false') }}
         shell: bash
