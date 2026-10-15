@@ -976,10 +976,59 @@ function start.f_drawPortraits(t_portraits, side, t, subname, last, iconDone)
 	end
 end
 
+-- Touch on the character grid: first tap on a cell moves the cursor, a tap on the highlighted cell confirms.
+function start.f_touchCell(selX, selY, side)
+	local down, pressed, released, mx, my = getTouch()
+	if not (down or pressed or released) then
+		return nil
+	end
+	touchClaim()
+	if not released then
+		return nil
+	end
+	local size = motif.select_info.cell.size
+	local px, py = motif.select_info.pos[1], motif.select_info.pos[2]
+	for y = 1, motif.select_info.rows do
+		local row = start.t_grid[y]
+		if row ~= nil then
+			for x = 1, motif.select_info.columns do
+				local c = row[x]
+				if c ~= nil then
+					local x0 = px + c.x
+					local y0 = py + c.y
+					if mx >= x0 and mx < x0 + size[1] and my >= y0 and my < y0 + size[2] then
+						local usable = (c.char ~= nil or motif.select_info.moveoveremptyboxes) and c.skip ~= 1 and c.hidden ~= 2
+							and (gameOption('Options.Team.Duplicates') or c.char == 'randomselect' or not t_reservedChars[side][c.char_ref])
+						if usable then
+							return x - 1, y - 1
+						end
+						return nil
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
 --returns correct cell position after moving the cursor
 function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 	local tmpX = selX
 	local tmpY = selY
+	-- touch (first player only)
+	if dir == nil and (cmd == 1 or cmd == -1) then
+		local tx, ty = start.f_touchCell(selX, selY, side)
+		if tx ~= nil then
+			if tx == selX and ty == selY then
+				touchPress('a')
+			else
+				if snd ~= nil then
+					sndPlay(motif.Snd, snd[1], snd[2])
+				end
+				return tx, ty
+			end
+		end
+	end
 	local found = false
 	if getInput(cmd, motif.select_info.cell.up.key) or dir == 'U' then
 		for i = 1, motif.select_info.rows do

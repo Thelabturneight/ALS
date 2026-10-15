@@ -1432,6 +1432,139 @@ function options.f_createMenu(tbl, bool_main)
 	end
 end
 
+
+--;===========================================================
+--; MOBILE (Android) SIMPLIFIED MENU, IN PORTUGUESE
+--;===========================================================
+options.t_pt = {
+	title = 'Opções',
+	menugame = 'Opções de Jogo',
+	menuaudio = 'Áudio',
+	menuvideo = 'Vídeo',
+	touchcontrols = 'Controles de Toque',
+	back = 'Voltar',
+	-- game
+	difficulty = 'Dificuldade',
+	roundtime = 'Tempo de Luta',
+	lifemul = 'Vida',
+	gamespeed = 'Velocidade do Jogo',
+	roundsnumsingle = 'Rounds para Vencer',
+	autoguard = 'Defesa Automática',
+	dizzy = 'Tontura',
+	guardbreak = 'Quebra de Defesa',
+	redlife = 'Vida Vermelha',
+	-- audio
+	mastervolume = 'Volume Geral',
+	bgmvolume = 'Volume da Música',
+	sfxvolume = 'Volume dos Efeitos',
+	normalizechars = 'Volume Padrão dos Lutadores',
+	-- video
+	aspectratio = 'Proporção da Tela',
+	defaultaspect = 'Padrão',
+	stageaspect = 'Do Cenário',
+	['4x3'] = '4:3',
+	['16x9'] = '16:9',
+}
+
+function options.f_mobileMenu()
+	local pt = options.t_pt
+	local upper = motif.option_info.menu.title.uppercase
+	local function pick(tbl, order)
+		local byName, spacer = {}, nil
+		for _, it in ipairs(tbl.items) do
+			byName[it.itemname] = it
+			if spacer == nil and it.itemname:match('^spacer%d*$') then
+				spacer = it
+			end
+		end
+		local out = {}
+		for _, name in ipairs(order) do
+			if name == 'spacer' then
+				if spacer ~= nil then out[#out + 1] = spacer end
+			elseif byName[name] ~= nil then
+				out[#out + 1] = byName[name]
+			end
+		end
+		tbl.items = out
+		for _, it in ipairs(out) do
+			if pt[it.itemname] ~= nil then it.displayname = pt[it.itemname] end
+		end
+		return byName
+	end
+	local function setTitle(tbl, name)
+		tbl.title = main.f_itemnameUpper(pt[name] or tbl.title, upper)
+	end
+	local menu = options.menu
+	menu.title = main.f_itemnameUpper(pt.title, upper)
+	-- Game
+	local g = menu.submenu.menugame
+	if g ~= nil then
+		pick(g, {'difficulty', 'roundtime', 'lifemul', 'gamespeed', 'roundsnumsingle', 'autoguard', 'dizzy', 'guardbreak', 'redlife', 'spacer', 'back'})
+		setTitle(g, 'menugame')
+	end
+	-- Audio (+ loudness normalization toggle)
+	local a = menu.submenu.menuaudio
+	if a ~= nil then
+		options.t_itemname['normalizechars'] = function(t, item, cursorPosY, moveTxt)
+			if getInput(-1, motif.option_info.menu.add.key, motif.option_info.menu.subtract.key, motif.option_info.menu.done.key) then
+				sndPlay(motif.Snd, motif.option_info.cursor.move.snd[1], motif.option_info.cursor.move.snd[2])
+				modifyGameOption('Sound.NormalizeChars', not gameOption('Sound.NormalizeChars'))
+				t.items[item].vardisplay = options.f_boolDisplay(gameOption('Sound.NormalizeChars'), 'Sim', 'Não')
+				options.modified = true
+			end
+			return true
+		end
+		local has = false
+		for _, it in ipairs(a.items) do
+			if it.itemname == 'normalizechars' then has = true end
+		end
+		if not has then
+			table.insert(a.items, 1, {
+				itemname = 'normalizechars',
+				displayname = pt.normalizechars,
+				paramname = 'menuaudio_normalizechars',
+				vardisplay = options.f_boolDisplay(gameOption('Sound.NormalizeChars'), 'Sim', 'Não'),
+				selected = false,
+			})
+			a.submenu['normalizechars'] = {title = '', submenu = {}, items = {}}
+		end
+		pick(a, {'mastervolume', 'bgmvolume', 'sfxvolume', 'normalizechars', 'spacer', 'back'})
+		setTitle(a, 'menuaudio')
+	end
+	-- Video: only the aspect ratio makes sense on a phone
+	local v = menu.submenu.menuvideo
+	if v ~= nil then
+		pick(v, {'aspectratio', 'spacer', 'back'})
+		setTitle(v, 'menuvideo')
+		local ar = v.submenu.aspectratio
+		if ar ~= nil then
+			pick(ar, {'defaultaspect', 'stageaspect', '4x3', '16x9', 'spacer', 'back'})
+			setTitle(ar, 'aspectratio')
+		end
+	end
+	-- Touch controls editor lives here now
+	options.t_itemname['touchcontrols'] = function(t, item, cursorPosY, moveTxt)
+		if getInput(-1, motif.option_info.menu.done.key) then
+			sndPlay(motif.Snd, motif.option_info.cursor.done.snd[1], motif.option_info.cursor.done.snd[2])
+			touchOpenEditor()
+		end
+		return true
+	end
+	menu.submenu['touchcontrols'] = {title = '', submenu = {}, items = {}}
+	table.insert(menu.items, {
+		itemname = 'touchcontrols',
+		displayname = pt.touchcontrols,
+		paramname = 'touchcontrols',
+		vardisplay = '',
+		selected = false,
+	})
+	-- Top level: only what matters on a phone
+	local byName = pick(menu, {'menugame', 'menuaudio', 'menuvideo', 'touchcontrols', 'spacer', 'back'})
+	if byName.back == nil then
+		menu.items[#menu.items + 1] = {itemname = 'back', displayname = pt.back, paramname = 'back', vardisplay = '', selected = false}
+	end
+end
+
 options.t_vardisplayPointers = {}
 
 local function findItemnameBySuffix(sfx)
@@ -1833,6 +1966,9 @@ function options.f_start()
 	end
 	main.f_pruneMenu(options.menu, excluded)
 	main.f_prunePointers(options.t_vardisplayPointers, excluded)
+	if runtimeOS == 'android' then
+		options.f_mobileMenu()
+	end
 	-- Menu windows
 	textImgSetWindow(motif.option_info.menu.item.selected.active.TextSpriteData, w[1], w[2], w[3], w[4])
 	textImgSetWindow(motif.option_info.menu.item.active.TextSpriteData, w[1], w[2], w[3], w[4])

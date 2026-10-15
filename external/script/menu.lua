@@ -596,6 +596,7 @@ end
 menu.pauseExitDelay = -1
 
 function menu.f_run()
+	touchSetMode(0) -- pause menu is touch-driven: hide the fight pad while it is open
 	local entry = nil
 	if menu.t_menuIndex ~= nil then
 		if menu.currentMenuId ~= nil and menu.t_menuIndex[menu.currentMenuId] ~= nil then
@@ -643,6 +644,7 @@ function menu.f_run()
 	local active = main.pauseMenuActive
 	if not active then
 		menu.pauseExitDelay = -1
+		touchSetMode(1) -- back to the fight
 	end
 	return active
 end

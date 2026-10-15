@@ -3634,6 +3634,91 @@ local function f_tweenStep(val, target, factor)
 	return newVal
 end
 
+
+--;===========================================================
+--; TOUCH (menus)
+--;===========================================================
+-- Direct touch support for every menu that uses main.f_menuCommonCalc.
+-- A finger press highlights the row under it; releasing on the same row confirms it.
+-- Rows that show a value (volume, on/off...) are adjusted instead: right half = more, left half = less (hold to repeat).
+-- Dragging vertically scrolls through long lists. Anything else falls back to the generic tap/swipe in the engine.
+main.touchState = {row = nil, startY = 0, moved = false, frames = 0, adjust = false, steps = 0}
+
+function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
+	local down, pressed, released, mx, my, nx = getTouch()
+	local st = main.touchState
+	if not (down or pressed or released) then
+		st.row = nil
+		return nil, nil
+	end
+	touchClaim()
+	local spacing = m.item.spacing[2]
+	if spacing == nil or spacing <= 0 then
+		return nil, nil
+	end
+	-- first row currently shown on screen (same logic used by the scroll code below)
+	local maxFirst = math.max(1, #t - visible + 1)
+	local first = math.max(1, math.min(maxFirst, item - cursorPosY + 1))
+	-- center of the first visible row in motif coordinates
+	local y0 = m.pos[2] + (m.boxcursor.coords[2] + m.boxcursor.coords[4]) / 2
+	local k = math.floor((my - (y0 - spacing / 2)) / spacing) + 1
+	local idx = nil
+	if k >= 1 and k <= math.min(visible, #t) then
+		idx = first + k - 1
+		if t[idx] == nil or t[idx].itemname:match("^spacer%d*$") then
+			idx = nil
+		end
+	end
+	local result = nil
+	if pressed then
+		st.row = idx
+		st.startY = my
+		st.moved = false
+		st.frames = 0
+		st.steps = 0
+		st.adjust = false
+		if idx ~= nil then
+			if idx ~= item then
+				result = {jump = idx}
+			elseif t[idx].vardisplay ~= nil and t[idx].vardisplay ~= '' then
+				st.adjust = true
+			end
+		end
+	end
+	if down and not pressed then
+		st.frames = st.frames + 1
+		-- vertical drag scrolls the list one row per `spacing` units
+		if math.abs(my - st.startY) > spacing * 0.6 then
+			st.moved = true
+			st.adjust = false
+		end
+		if st.moved then
+			local steps = math.floor((my - st.startY) / spacing)
+			if steps ~= st.steps then
+				-- finger moved down: list scrolls up (cursor goes back), like dragging a page
+				touchPress(steps < st.steps and 'D' or 'U')
+				st.steps = steps
+			end
+		end
+	end
+	-- adjustable value rows: right half increases, left half decreases, with hold-to-repeat
+	if st.adjust and down and not st.moved then
+		if pressed or st.frames == 1 or (st.frames > 18 and st.frames % 3 == 0) then
+			touchPress(nx >= 0.5 and 'R' or 'L')
+		end
+	end
+	if released then
+		-- a tap that began and ended in the same frame still selects first; confirm only an already highlighted row
+		local current = (result ~= nil and result.jump) or item
+		if st.row ~= nil and not st.moved and not st.adjust and idx == st.row and st.row == current and not (result ~= nil and result.jump) then
+			touchPress('a')
+		end
+		st.row = nil
+		st.adjust = false
+	end
+	return result, idx
+end
+
 --common menu calculations
 function main.f_menuCommonCalc(t, item, cursorPosY, moveTxt, sec, cursorParams, forcedDir)
 	local m = sec.menu or sec
@@ -3658,6 +3743,16 @@ function main.f_menuCommonCalc(t, item, cursorPosY, moveTxt, sec, cursorParams, 
 	if m.window and m.window.visibleitems ~= nil then
 		if m.window.visibleitems > 0 then
 			visible = m.window.visibleitems
+		end
+	end
+	-- touch: jump the cursor to the tapped row
+	if forcedDir == nil then
+		local jump = main.f_touchMenuRow(t, item, cursorPosY, m, visible)
+		if jump ~= nil and jump.jump ~= nil then
+			local first = math.max(1, math.min(math.max(1, #t - visible + 1), item - cursorPosY + 1))
+			sndPlay(motif.Snd, cursorParams.move.snd[1], cursorParams.move.snd[2])
+			item = jump.jump
+			cursorPosY = math.max(1, math.min(visible, item - first + 1))
 		end
 	end
 	-- movement: forcedDir: 1 = next (down), -1 = previous (up), 0/nil = no forced move
