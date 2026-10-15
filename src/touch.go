@@ -31,6 +31,7 @@ const touchMouseID uint32 = 0xFFFFFFFF
 const (
 	mobileCmdMode   = 1 // param: 0 = menus, 1 = fight
 	mobileCmdEditor = 2 // open the touch controls editor
+	mobileCmdBack   = 3 // param: 0 = hide the on-screen Back button (root menu), 1 = show it
 )
 
 type touchSys struct {
@@ -53,9 +54,10 @@ type touchSys struct {
 	tokens map[string]int32
 
 	mode int // last mode sent to the Android activity
+	back int // last Back button visibility sent to the Android activity
 }
 
-var touch = touchSys{tokens: map[string]int32{}, mode: -1}
+var touch = touchSys{tokens: map[string]int32{}, mode: -1, back: -1}
 
 // Called once per frame before events are polled.
 func (t *touchSys) beginFrame() {
@@ -252,6 +254,15 @@ func mobileSetMode(mode int) {
 	mobileSend(mobileCmdMode, mode)
 }
 
+// Shows or hides the on-screen Back button (hidden on the root title menu, where there is nothing to go back to).
+func mobileSetBack(visible int) {
+	if touch.back == visible {
+		return
+	}
+	touch.back = visible
+	mobileSend(mobileCmdBack, visible)
+}
+
 // ---------------------------------------------------------------------------
 // Lua API
 // ---------------------------------------------------------------------------
@@ -296,6 +307,17 @@ func touchScriptInit(l *lua.LState) {
 		@function touchSetMode
 		@tparam int mode 0 = menus, 1 = fight.*/
 		mobileSetMode(int(numArg(l, 1)))
+		return 0
+	})
+	luaRegister(l, "touchBackVisible", func(l *lua.LState) int {
+		/*Show or hide the on-screen Back button of the Android wrapper (menus only).
+		@function touchBackVisible
+		@tparam boolean visible Whether the button should be shown.*/
+		v := 0
+		if l.ToBool(1) {
+			v = 1
+		}
+		mobileSetBack(v)
 		return 0
 	})
 	luaRegister(l, "touchOpenEditor", func(l *lua.LState) int {
