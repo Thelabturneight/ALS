@@ -453,10 +453,6 @@ jobs:
               *) mkdir -p "chars/$n"; cp -a "$d." "chars/$n/" ;;
             esac
           done
-          # Arquivos inuteis
-          rm -f chars/Goku
-          find chars stages sound -iname Thumbs.db -delete
-          find chars -iname '*.txt' -delete
           # Nomes com espaco quebram o manifest do build
           if find chars stages sound -name '* *' | grep -q .; then
             echo "ERRO: renomeie estes arquivos (sem espacos) e ajuste o .def:"
