@@ -2740,6 +2740,8 @@ function main.f_createMenu(tbl, bool_bgreset, bool_main, bool_f1, bool_del)
 		end
 		main.menu.f = nil
 		while true do
+			-- Android: no on-screen Back button on the root title menu (nothing to go back to).
+			touchBackVisible(not (bool_main and tbl == main.menu))
 			if tbl.reset then
 				tbl.reset = false
 			else
@@ -2751,6 +2753,7 @@ function main.f_createMenu(tbl, bool_bgreset, bool_main, bool_f1, bool_del)
 					fadeSkip()
 				end
 			elseif main.menu.f ~= nil then
+				touchBackVisible(true) -- entering a mode/submenu: Back becomes available
 				main.f_unlock(false)
 				main.menu.f()
 				main.f_default()

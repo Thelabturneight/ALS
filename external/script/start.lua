@@ -976,7 +976,7 @@ function start.f_drawPortraits(t_portraits, side, t, subname, last, iconDone)
 	end
 end
 
--- Touch on the character grid: first tap on a cell moves the cursor, a tap on the highlighted cell confirms.
+-- Touch on the character grid: a single tap on a cell moves the cursor there and confirms it.
 function start.f_touchCell(selX, selY, side)
 	local down, pressed, released, mx, my = getTouch()
 	if not (down or pressed or released) then
@@ -1019,14 +1019,16 @@ function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 	if dir == nil and (cmd == 1 or cmd == -1) then
 		local tx, ty = start.f_touchCell(selX, selY, side)
 		if tx ~= nil then
-			if tx == selX and ty == selY then
-				touchPress('a')
-			else
+			-- Single tap: move to the tapped cell (if different) and confirm it right away.
+			if tx ~= selX or ty ~= selY then
 				if snd ~= nil then
 					sndPlay(motif.Snd, snd[1], snd[2])
 				end
-				return tx, ty
+				selX, selY = tx, ty
+				tmpX, tmpY = tx, ty
 			end
+			touchPress('a')
+			return selX, selY
 		end
 	end
 	local found = false
