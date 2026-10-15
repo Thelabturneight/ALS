@@ -977,8 +977,9 @@ function start.f_drawPortraits(t_portraits, side, t, subname, last, iconDone)
 end
 
 -- Touch on the character grid: drag the finger to slide the cursor across the cells;
--- a quick tap (no drag) on a cell moves the cursor there and confirms it.
--- Returns cellX, cellY (0-based), released (finger lifted this frame), dragged (finger moved since touching down).
+-- a quick tap (no drag) on a cell only moves the cursor there; tapping the cell that is already highlighted confirms it.
+-- Returns cellX, cellY (0-based), released (finger lifted this frame), dragged (finger moved since touching down),
+-- sameAsStart (the cell under the finger is the one the cursor was on when the finger touched down).
 function start.f_touchCell(selX, selY, side)
 	local down, pressed, released, mx, my = getTouch()
 	if not (down or pressed or released) then
@@ -987,7 +988,7 @@ function start.f_touchCell(selX, selY, side)
 	end
 	touchClaim()
 	if pressed or start.touchOrigin == nil then
-		start.touchOrigin = {mx, my, false}
+		start.touchOrigin = {mx, my, false, selX, selY}
 	end
 	local o = start.touchOrigin
 	if not o[3] and (math.abs(mx - o[1]) > 8 or math.abs(my - o[2]) > 8) then
@@ -1011,7 +1012,7 @@ function start.f_touchCell(selX, selY, side)
 						local usable = (c.char ~= nil or motif.select_info.moveoveremptyboxes) and c.skip ~= 1 and c.hidden ~= 2
 							and (gameOption('Options.Team.Duplicates') or c.char == 'randomselect' or not t_reservedChars[side][c.char_ref])
 						if usable then
-							return x - 1, y - 1, released, dragged
+							return x - 1, y - 1, released, dragged, (x - 1 == o[4] and y - 1 == o[5])
 						end
 						return nil
 					end
@@ -1036,19 +1037,15 @@ function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 			start.touchConfirm = true
 			return selX, selY
 		end
-		local tx, ty, released, dragged = start.f_touchCell(selX, selY, side)
+		local tx, ty, released, dragged, sameAsStart = start.f_touchCell(selX, selY, side)
 		if tx ~= nil then
 			local changed = tx ~= selX or ty ~= selY
 			if changed and snd ~= nil then
 				sndPlay(motif.Snd, snd[1], snd[2])
 			end
-			if released and not dragged then
-				if changed then
-					-- Single tap on another cell: move now, confirm on the next frame.
-					start.touchConfirmPending = true
-				else
-					start.touchConfirm = true
-				end
+			-- A tap on another cell only moves the cursor; tapping the already highlighted cell confirms.
+			if released and not dragged and sameAsStart then
+				start.touchConfirm = true
 			end
 			if changed then
 				return tx, ty

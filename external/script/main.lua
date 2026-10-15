@@ -3671,6 +3671,38 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 			idx = nil
 		end
 	end
+	-- the tap must also be horizontally on top of the row's text (label and value), not anywhere on that line
+	if idx ~= nil then
+		local left, right
+		local function extend(spr, txt, dx)
+			if spr == nil or txt == nil or txt == '' then
+				return
+			end
+			local l, r = textImgGetBounds(spr, txt, dx)
+			if left == nil or l < left then left = l end
+			if right == nil or r > right then right = r end
+		end
+		local it = t[idx]
+		local dx = (idx - 1) * m.item.spacing[1]
+		local name = main.f_itemnameUpper(it.displayname, m.item.uppercase)
+		extend(m.item.TextSpriteData, name, dx)
+		extend(m.item.active and m.item.active.TextSpriteData, name, dx)
+		extend(m.item.selected and m.item.selected.TextSpriteData, name, dx)
+		extend(m.item.selected and m.item.selected.active and m.item.selected.active.TextSpriteData, name, dx)
+		if it.vardisplay ~= nil then
+			extend(m.item.value and m.item.value.TextSpriteData, it.vardisplay, dx)
+			extend(m.item.value and m.item.value.active and m.item.value.active.TextSpriteData, it.vardisplay, dx)
+		elseif it.infodisplay ~= nil then
+			extend(m.item.info and m.item.info.TextSpriteData, it.infodisplay, dx)
+			extend(m.item.info and m.item.info.active and m.item.info.active.TextSpriteData, it.infodisplay, dx)
+		end
+		if left ~= nil then
+			local pad = 6 -- small tolerance in motif units
+			if mx < left - pad or mx > right + pad then
+				idx = nil
+			end
+		end
+	end
 	local result = nil
 	if pressed then
 		st.row = idx
