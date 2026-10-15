@@ -434,7 +434,7 @@ jobs:
             done
           fi
 
-    #  - name: Adicionar personagens
+      - name: Adicionar personagens
         if: ${{ matrix.cfg.runner_os == 'android' }}
         env:
           GH_TOKEN: ${{ github.token }}
