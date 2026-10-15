@@ -1017,17 +1017,18 @@ function start.f_cellMovement(selX, selY, cmd, side, snd, dir)
 	local tmpY = selY
 	-- touch (first player only)
 	if dir == nil and (cmd == 1 or cmd == -1) then
-		-- A tap on another cell moved the cursor on the previous frame: confirm it now, as a second
-		-- press on the highlighted cell would (the cursor must have settled before 'a' is read).
+		-- Confirmation is read by f_slotSelected from this flag (touch is not a command state).
+		start.touchConfirm = false
+		-- A tap on another cell moved the cursor on the previous frame: confirm it now.
 		if start.touchConfirmPending then
 			start.touchConfirmPending = false
-			touchPress('a')
+			start.touchConfirm = true
 			return selX, selY
 		end
 		local tx, ty = start.f_touchCell(selX, selY, side)
 		if tx ~= nil then
 			if tx == selX and ty == selY then
-				touchPress('a')
+				start.touchConfirm = true
 			else
 				-- Single tap: move to the tapped cell now and confirm it on the next frame.
 				if snd ~= nil then
@@ -1613,7 +1614,9 @@ function start.f_slotSelected(cell, side, cmd, player, x, y)
 		end
 	end
 	-- returns true on pressed key if current slot is not blocked by TeamDuplicates feature
-	return main.f_btnPalNo(cmd) > 0 and (not t_reservedChars[side][start.t_grid[y + 1][x + 1].char_ref] or start.t_grid[start.c[player].selY + 1][start.c[player].selX + 1].char == 'randomselect'),false
+	local touchConfirm = start.touchConfirm
+	start.touchConfirm = false
+	return (main.f_btnPalNo(cmd) > 0 or touchConfirm) and (not t_reservedChars[side][start.t_grid[y + 1][x + 1].char_ref] or start.t_grid[start.c[player].selY + 1][start.c[player].selX + 1].char == 'randomselect'),false
 end
 
 --generate start.t_grid table, assign row and cell to main.t_selChars
@@ -1930,6 +1933,7 @@ end
 --resets various data
 function start.f_selectReset(hardReset, preserveProgress)
 	start.touchConfirmPending = false
+	start.touchConfirm = false
 	esc(false)
 	if not preserveProgress then
 		resetGameStats()
