@@ -6801,6 +6801,20 @@ func systemScriptInit(l *lua.LState) {
 		})
 		return 0
 	})
+	luaRegister(l, "textImgGetPos", func(*lua.LState) int {
+		/*Get the initial position (motif localcoord units) of a text sprite.
+		@function textImgGetPos
+		@tparam TextSprite ts Text sprite userdata.
+		@treturn float32 x X position.
+		@treturn float32 y Y position.*/
+		ts, ok := toUserData(l, 1).(*TextSprite)
+		if !ok {
+			userDataError(l, 1, ts)
+		}
+		l.Push(lua.LNumber(ts.offsetInit[0]))
+		l.Push(lua.LNumber(ts.offsetInit[1]))
+		return 2
+	})
 	luaRegister(l, "textImgGetTextWidth", func(*lua.LState) int {
 		/*Measure the width of a text string for a font.
 		@function textImgGetTextWidth
