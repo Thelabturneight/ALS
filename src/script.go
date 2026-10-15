@@ -2843,12 +2843,18 @@ func systemScriptInit(l *lua.LState) {
 				sys.loader.reset()
 			}
 			mobileSetMode(0) // back to menus: show touch menu instead of the fight pad
+			mobileSetTag(0)  // hide the Tag swap buttons
 		}()
 		sys.keyString = ""
 		sys.keyInput = KeyUnknown
 		sys.luaDiscardDrawQueue()
 		sys.gameRunning = true
 		mobileSetMode(1) // fight: show the virtual pad
+		if sys.tmode[0] == TM_Tag {
+			mobileSetTag(1) // Tag match: also show the D/W character swap buttons
+		} else {
+			mobileSetTag(0)
+		}
 		sys.escPending = false
 		sys.motif.fadeIn.reset()
 		sys.motif.fadeOut.reset()

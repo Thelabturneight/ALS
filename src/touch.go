@@ -32,6 +32,7 @@ const (
 	mobileCmdMode   = 1 // param: 0 = menus, 1 = fight
 	mobileCmdEditor = 2 // open the touch controls editor
 	mobileCmdBack   = 3 // param: 0 = hide the on-screen Back button (root menu), 1 = show it
+	mobileCmdTag    = 4 // param: 0 = not a Tag match, 1 = Tag match (shows the D/W swap buttons)
 )
 
 type touchSys struct {
@@ -55,9 +56,10 @@ type touchSys struct {
 
 	mode int // last mode sent to the Android activity
 	back int // last Back button visibility sent to the Android activity
+	tag  int // last Tag-mode flag sent to the Android activity
 }
 
-var touch = touchSys{tokens: map[string]int32{}, mode: -1, back: -1}
+var touch = touchSys{tokens: map[string]int32{}, mode: -1, back: -1, tag: -1}
 
 // Called once per frame before events are polled.
 func (t *touchSys) beginFrame() {
@@ -252,6 +254,15 @@ func mobileSetMode(mode int) {
 	}
 	touch.mode = mode
 	mobileSend(mobileCmdMode, mode)
+}
+
+// Tells the Android wrapper whether the current match is Tag (shows the D/W swap buttons) or not.
+func mobileSetTag(tag int) {
+	if touch.tag == tag {
+		return
+	}
+	touch.tag = tag
+	mobileSend(mobileCmdTag, tag)
 }
 
 // Shows or hides the on-screen Back button (hidden on the root title menu, where there is nothing to go back to).
