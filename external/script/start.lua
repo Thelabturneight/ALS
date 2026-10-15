@@ -3501,7 +3501,6 @@ end
 -- Draw Palette Menu
 --===========================================================
 start.palMenuLabel = 'Forma' -- label shown above the palette number
-start.palArrowGap = 28 -- distance (motif units) of the < > arrows from the palette number
 
 function start.f_palMenuDraw(side, member, curIdx, validIdx ,maxIdx)
 	local charData = start.f_getCharData(start.p[side].t_selTemp[member].ref)
@@ -3513,16 +3512,6 @@ function start.f_palMenuDraw(side, member, curIdx, validIdx ,maxIdx)
 	local displayText = (curIdx == maxIdx) and pCfg.palmenu.random.text or tostring(validIdx)
 	-- bg
 	main.f_animPosDraw(pCfg.palmenu.bg.AnimData)
-	-- draw touch arrows around the number (only when there is more than one palette to browse)
-	if maxIdx > 2 then
-		local ts = pCfg.palmenu.number.TextSpriteData
-		for _, a in ipairs({{'<', -start.palArrowGap}, {'>', start.palArrowGap}}) do
-			textImgReset(ts)
-			textImgSetText(ts, a[1])
-			textImgAddPos(ts, a[2], 0)
-			textImgDraw(ts)
-		end
-	end
 	-- draw number
 	textImgReset(pCfg.palmenu.number.TextSpriteData)
 	textImgSetText(pCfg.palmenu.number.TextSpriteData, displayText)
@@ -3631,25 +3620,8 @@ function start.f_palMenu(side, cmd, player, member, selectState)
 	local maxIdx = #validPals + 1
 	start.p[side].inPalMenu = true
 
-	-- touch: tap the < or > arrows beside the palette number to browse (swiping also works)
+	-- no on-screen arrows: browse palettes by swiping left/right (generic gesture) or with the keys
 	local touchNext, touchPrev = false, false
-	if maxIdx > 2 then
-		local down, pressed, released, mx, my = getTouch()
-		if down or pressed or released then
-			local nx, ny = textImgGetPos(pCfg.palmenu.number.TextSpriteData)
-			local gap = start.palArrowGap
-			if math.abs(my - (ny - 8)) < 30 then
-				local left = mx >= nx - gap - 40 and mx < nx - 6
-				local right = mx > nx + 6 and mx <= nx + gap + 40
-				if left or right then
-					touchClaim()
-					if released then
-						touchPrev, touchNext = left, right
-					end
-				end
-			end
-		end
-	end
 
 	-- accept selection
 	local autoConfirm = #validPals <= 1

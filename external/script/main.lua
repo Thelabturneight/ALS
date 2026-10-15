@@ -3697,8 +3697,8 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 		if st.moved then
 			local steps = math.floor((my - st.startY) / spacing)
 			if steps ~= st.steps then
-				-- finger moved down: list scrolls up (cursor goes back), like dragging a page
-				touchPress(steps < st.steps and 'D' or 'U')
+				-- finger moved down: selection goes down; finger moved up: selection goes up
+				touchPress(steps > st.steps and 'D' or 'U')
 				st.steps = steps
 			end
 		end
