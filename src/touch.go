@@ -324,6 +324,14 @@ func touchScriptInit(l *lua.LState) {
 		l.Push(lua.LNumber(touch.y))
 		return 7
 	})
+	luaRegister(l, "touchViewportFixed", func(l *lua.LState) int {
+		/*Marker: this engine already removes the letterbox bars from touch coordinates (see touchWindowToGame),
+		so scripts must not apply any extra horizontal calibration.
+		@function touchViewportFixed
+		@treturn boolean always true.*/
+		l.Push(lua.LBool(true))
+		return 1
+	})
 	luaRegister(l, "touchClaim", func(l *lua.LState) int {
 		/*Mark the current gesture as handled by a screen, which disables the generic tap/swipe fallback.
 		@function touchClaim*/
