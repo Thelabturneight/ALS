@@ -170,7 +170,14 @@ func (t *touchSys) generic() {
 // ---------------------------------------------------------------------------
 
 func touchNormalizePixels(px, py int32) (float32, float32) {
+	// Mouse positions arrive in window pixels, so normalize by the WINDOW size (not by sys.scrrect, which is
+	// the internal render size). This keeps mouse and finger events in the same 0..1 window space.
 	w, h := float32(sys.scrrect[2]), float32(sys.scrrect[3])
+	if sys.window != nil {
+		if ww, wh := sys.window.GetDrawablePixelSize(); ww > 0 && wh > 0 {
+			w, h = float32(ww), float32(wh)
+		}
+	}
 	if w <= 0 || h <= 0 {
 		return 0, 0
 	}
@@ -226,7 +233,25 @@ func touchOnMouseMotion(e sdl.MouseMotionEvent) {
 
 // Converts normalized window coordinates to the motif's localcoord space. This mirrors
 // TextSprite.SetLocalcoord and the offsets applied when texts are drawn.
+// touchWindowToGame converts a position normalized to the WINDOW (0..1) into a position normalized to the game
+// image (0..1). The game is rendered to an internal framebuffer and then scaled into the window keeping its aspect
+// ratio (KeepAspect), which leaves black bars on the sides (or top/bottom). Without removing those bars every touch
+// lands displaced horizontally (or vertically), growing towards the edges of the screen.
+// It uses the exact same viewport the renderer uses (Window.GetScaledViewportSize).
+func (s *System) touchWindowToGame(nx, ny float32) (float32, float32) {
+	if s.window == nil {
+		return nx, ny
+	}
+	ww, wh := s.window.GetDrawablePixelSize()
+	vx, vy, vw, vh := s.window.GetScaledViewportSize()
+	if ww <= 0 || wh <= 0 || vw <= 0 || vh <= 0 {
+		return nx, ny
+	}
+	return (nx*float32(ww) - float32(vx)) / float32(vw), (ny*float32(wh) - float32(vy)) / float32(vh)
+}
+
 func (s *System) touchToMotif(nx, ny float32) (float32, float32) {
+	nx, ny = s.touchWindowToGame(nx, ny)
 	lx, ly := float32(s.motif.Info.Localcoord[0]), float32(s.motif.Info.Localcoord[1])
 	gw, gh := s.gameWidth, s.gameHeight
 	if lx <= 0 || ly <= 0 || gw <= 0 || gh <= 0 {
