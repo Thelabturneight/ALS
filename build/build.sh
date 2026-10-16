@@ -1270,6 +1270,19 @@ function build_android_apk() {
 	cp -av "$apk_src" "$ANDROID_APK_OUT"
 
 	echo "==> APK ready: $ANDROID_APK_OUT"
+
+	# Beta APK (folder-select build). Optional: a failure here never breaks the normal APK.
+	if [[ "${BUILD_ANDROID_BETA:-1}" != "0" ]]; then
+		echo "==> Building BETA APK with Gradle (assembleBeta)..."
+		local beta_src="$ANDROID_APK_DIR/app/build/outputs/apk/beta/app-beta.apk"
+		local beta_out="$(dirname "$ANDROID_APK_OUT")/ikemen-go-beta.apk"
+		if ./gradlew --no-daemon assembleBeta && [[ -f "$beta_src" ]]; then
+			cp -av "$beta_src" "$beta_out"
+			echo "==> BETA APK ready: $beta_out"
+		else
+			echo "WARNING: beta APK was not built (the ikemen-droid wrapper may not have the 'beta' build type yet)." >&2
+		fi
+	fi
 	popd >/dev/null
 }
 
