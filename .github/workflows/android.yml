@@ -43,5 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ikemen-go-apk
-          path: bin/ikemen-go.apk
+          path: |
+            bin/ikemen-go.apk
+            bin/ikemen-go-beta.apk
           if-no-files-found: error

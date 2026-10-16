@@ -517,6 +517,7 @@ jobs:
             echo "==> Preparing Android release artifact"
             mkdir -p deploy/lib
             cp -av bin/ikemen-go.apk deploy/ || true
+            cp -av bin/ikemen-go-beta.apk deploy/ 2>/dev/null || true
             cp -av bin/libmain.so bin/libmain.h deploy/ 2>/dev/null || true
             cp -av lib/*.so* deploy/lib/ 2>/dev/null || true
             cp README.md deploy/ 2>/dev/null || true
