@@ -56,8 +56,20 @@ jobs:
           # Se data_repo for outro repo PRIVADO, crie o secret DATA_TOKEN (PAT com leitura).
           GH_TOKEN: ${{ secrets.DATA_TOKEN != '' && secrets.DATA_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          gh release download "${{ inputs.data_tag }}" \
-            --repo "${{ inputs.data_repo }}" \
+          REPO="${{ inputs.data_repo }}"
+          TAG="${{ inputs.data_tag }}"
+          if [[ "$REPO" == *SEU_USUARIO* ]]; then
+            echo "::error::data_repo ainda esta com o valor padrao ($REPO). Informe dono/nome do repo que tem a Release, ex.: Thelabturneigh/Ikemen-GO"
+            exit 1
+          fi
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::error::Release com tag '$TAG' nao encontrada em '$REPO' (ou o token nao tem acesso). Releases visiveis:"
+            gh release list --repo "$REPO" --limit 20 || true
+            echo "Dicas: a Release precisa estar PUBLICADA (nao rascunho); a tag e case-sensitive; se o repo for privado/outro dono, crie o secret DATA_TOKEN."
+            exit 1
+          fi
+          gh release download "$TAG" \
+            --repo "$REPO" \
             --pattern "${{ inputs.data_asset }}" \
             --dir /tmp --clobber
           # Extrai na raiz do Ikemen-GO (o build.sh resolve os caminhos a partir daqui)
