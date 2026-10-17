@@ -135,6 +135,8 @@ jobs:
 
       - name: Renomear APK
         run: |
+          # O Docker cria os arquivos de bin/ como root; devolve ao usuario do runner
+          sudo chown -R "$(id -u):$(id -g)" bin
           if [ "${{ inputs.final_build }}" = "true" ]; then
             mv bin/ikemen-go.apk bin/AnimeStarlab.apk
           else
