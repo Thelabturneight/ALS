@@ -28,6 +28,11 @@ on:
         description: 'Nome do zip anexado na Release'
         required: true
         default: 'data.zip'
+      final_build:
+        description: 'Build FINAL: sem mensagem de log no inicio e sem botao de selecionar pasta (gera so o APK final). Desmarcado = preview/beta para continuar trabalhando'
+        type: boolean
+        required: true
+        default: false
       remove_default_content:
         description: 'Remover chars e stages padrao do jogo (kfm, stage0 etc.) do APK'
         type: boolean
@@ -71,6 +76,20 @@ jobs:
           sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime Starlab\2|' \
             wrapper_src/app/src/main/res/values/strings.xml
           grep 'name="app_name"' wrapper_src/app/src/main/res/values/strings.xml
+          # Nome do app no build beta (o beta tem o proprio app_name)
+          if [ -f wrapper_src/app/src/beta/res/values/strings.xml ]; then
+            sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime Starlab Beta\2|' \
+              wrapper_src/app/src/beta/res/values/strings.xml
+          fi
+          # Mensagem de log no inicio: ligada nos builds de trabalho, desligada no FINAL
+          BOOLS=wrapper_src/app/src/main/res/values/bools.xml
+          if ! grep -q 'name="show_log_viewer"' "$BOOLS"; then
+            echo "::error::Seu ikemen-droid ainda nao tem show_log_viewer em bools.xml. Envie os arquivos alterados (SDLActivity.java e bools.xml) para o fork do ikemen-droid."
+            exit 1
+          fi
+          if [ "${{ inputs.final_build }}" = "true" ]; then SHOWLOG=false; else SHOWLOG=true; fi
+          sed -i "s|\(<bool name=\"show_log_viewer\">\)[^<]*\(</bool>\)|\1$SHOWLOG\2|" "$BOOLS"
+          grep 'show_log_viewer' "$BOOLS"
           M=wrapper_src/app/src/main/assets/manifest.txt
           if [ "${{ inputs.remove_default_content }}" = "true" ]; then
             # Tira do manifest original todos os arquivos dentro de chars/ e stages/
@@ -95,20 +114,28 @@ jobs:
           chmod +x build/build.sh
           docker compose -f build/docker/android/docker-compose.yml build android-build
           # /work dentro do container e a raiz do repo, entao wrapper_src fica em /work/wrapper_src
+          # FINAL: nao compila o beta (que tem o botao de selecionar pasta)
+          if [ "${{ inputs.final_build }}" = "true" ]; then BETA=0; else BETA=1; fi
           docker compose -f build/docker/android/docker-compose.yml run --rm \
             -e ANDROID_APK_REPO="/work/wrapper_src" \
+            -e BUILD_ANDROID_BETA="$BETA" \
             android-build
 
       - name: Renomear APK
         run: |
-          mv bin/ikemen-go.apk bin/AnimeStarlab.apk
-          [ -f bin/ikemen-go-beta.apk ] && mv bin/ikemen-go-beta.apk bin/AnimeStarlab-beta.apk || true
+          if [ "${{ inputs.final_build }}" = "true" ]; then
+            mv bin/ikemen-go.apk bin/AnimeStarlab.apk
+          else
+            mv bin/ikemen-go.apk bin/AnimeStarlab-preview.apk
+            [ -f bin/ikemen-go-beta.apk ] && mv bin/ikemen-go-beta.apk bin/AnimeStarlab-beta.apk || true
+          fi
 
       - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
-          name: anime-starlab-apk
+          name: anime-starlab-${{ inputs.final_build && 'final' || 'preview' }}
           path: |
             bin/AnimeStarlab.apk
+            bin/AnimeStarlab-preview.apk
             bin/AnimeStarlab-beta.apk
           if-no-files-found: error
