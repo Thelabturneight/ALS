@@ -33,6 +33,7 @@ const (
 	mobileCmdEditor = 2 // open the touch controls editor
 	mobileCmdBack   = 3 // param: 0 = hide the on-screen Back button (root menu), 1 = show it
 	mobileCmdTag    = 4 // param: 0 = not a Tag match, 1 = Tag match (shows the D/W swap buttons)
+	mobileCmdDir    = 5 // param: 0 = analog stick, 1 = D-pad
 )
 
 type touchSys struct {
@@ -362,6 +363,13 @@ func touchScriptInit(l *lua.LState) {
 			v = 1
 		}
 		mobileSetBack(v)
+		return 0
+	})
+	luaRegister(l, "touchSetDirType", func(l *lua.LState) int {
+		/*Tell the Android wrapper which directional control to use in fights.
+		@function touchSetDirType
+		@tparam int kind 0 = analog stick, 1 = D-pad.*/
+		mobileSend(mobileCmdDir, int(numArg(l, 1)))
 		return 0
 	})
 	luaRegister(l, "touchOpenEditor", func(l *lua.LState) int {
