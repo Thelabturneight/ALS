@@ -68,6 +68,100 @@ function main.f_fileWrite(path, str, mode)
 	file:close()
 end
 
+--;===========================================================
+--; TOUCH CALIBRATION (X axis)
+--;===========================================================
+-- The engine converts the finger position on the real screen to motif units (1280x720). On phones whose screen is
+-- wider than the game (black bars on the sides) that conversion can come out shifted/stretched horizontally, so the
+-- finger lands left or right of what it is touching. At first start (and whenever save/touch_calibration.txt is
+-- deleted) the game asks for two taps on known points, fits  x_true = x_raw * scale + offset  and stores it.
+-- Every script then reads the corrected value, because getTouch is wrapped here.
+main.touchCalFile = 'save/touch_calibration.txt'
+main.touchCal = {scale = 1, offset = 0, loaded = false}
+-- A fixed engine (touchViewportFixed exists) already returns correct coordinates: any saved calibration is stale
+-- (it was measured against the old, wrong conversion) and would push touches the other way, so it is ignored.
+main.touchEngineFixed = (type(touchViewportFixed) == 'function')
+do
+	local str = nil
+	if not main.touchEngineFixed then
+		str = main.f_fileRead(main.touchCalFile, 'r', true)
+	end
+	if str ~= nil then
+		local sc, off = str:match('^%s*([%-%d%.eE]+)%s+([%-%d%.eE]+)')
+		sc, off = tonumber(sc), tonumber(off)
+		if sc ~= nil and off ~= nil and sc > 0.5 and sc < 2 then
+			main.touchCal.scale, main.touchCal.offset, main.touchCal.loaded = sc, off, true
+		end
+	end
+	main.rawGetTouch = main.rawGetTouch or getTouch
+	local raw = main.rawGetTouch
+	getTouch = function()
+		local down, pressed, released, mx, my, nx = raw()
+		if mx ~= nil then
+			mx = mx * main.touchCal.scale + main.touchCal.offset
+		end
+		return down, pressed, released, mx, my, nx
+	end
+end
+
+function main.f_touchCalibrate()
+	local spr = motif.title_info.loading.TextSpriteData
+	textImgSetWindow(spr, 0, 0, 1280, 720)
+	local targets = {200, 1080}
+	local label = '[ TOQUE AQUI ]'
+	local head = 'CALIBRAR TOQUE - TOQUE NO CENTRO DO TEXTO'
+	local raws, stage = {}, 1
+	-- horizontal centers of the label when drawn without offset
+	textImgReset(spr)
+	textImgSetText(spr, label)
+	local l0, r0 = textImgGetBounds(spr, label, 0)
+	if l0 == nil or r0 == nil then
+		return
+	end
+	local base = (l0 + r0) / 2
+	local skip = false
+	while stage <= #targets do
+		clearColor(0, 0, 0)
+		local dx = targets[stage] - base
+		textImgReset(spr)
+		textImgAddPos(spr, dx, -300)
+		textImgSetText(spr, label)
+		textImgDraw(spr)
+		textImgReset(spr)
+		textImgAddPos(spr, 640 - base, -380)
+		textImgSetText(spr, head)
+		textImgDraw(spr)
+		refresh()
+		local down, pressed, released, mx = main.rawGetTouch()
+		if pressed or down or released then
+			touchClaim()
+		end
+		if released and mx ~= nil then
+			table.insert(raws, mx)
+			stage = stage + 1
+		end
+		if esc() then
+			skip = true
+			break
+		end
+	end
+	local sc, off = 1, 0
+	if not skip and #raws == 2 and math.abs(raws[2] - raws[1]) > 100 then
+		sc = (targets[2] - targets[1]) / (raws[2] - raws[1])
+		off = targets[1] - sc * raws[1]
+		if sc < 0.5 or sc > 2 then
+			sc, off = 1, 0
+		end
+	end
+	main.touchCal.scale, main.touchCal.offset, main.touchCal.loaded = sc, off, true
+	local f = io.open(main.touchCalFile, 'w+')
+	if f ~= nil then
+		f:write(string.format('%.6f %.4f\n', sc, off))
+		f:close()
+	end
+end
+
+
 --returns value depending on button pressed (a = 1; a + start = 7 etc.)
 function main.f_btnPalNo(p)
 	local s = 0
@@ -3032,7 +3126,87 @@ function main.f_start()
 	--for _, v in pairs(motif[main.group].menu.item.active.bg) do
 	--	animSetWindow(v.AnimData, w[1], w[2], w[3], w[4])
 	--end
+	if getRuntimeOS() == 'android' and main.group == 'title_info' then
+		main.f_mobileMainMenu()
+	end
 	if gameOption('Debug.DumpLuaTables') then main.f_printTable(main.menu, 'debug/t_mainMenu.txt') end
+end
+
+--;===========================================================
+--; MOBILE (Android) MAIN MENU
+--;===========================================================
+-- Directional type of the touch controls ('analog' or 'dpad'), persisted in a tiny file and
+-- pushed to the Android wrapper (which also keeps its own copy).
+main.touchDirFile = 'save/touchdir.txt'
+
+function main.f_touchGetDir()
+	local str = main.f_fileRead(main.touchDirFile, 'r', true)
+	if str ~= nil and str:match('analog') then
+		return 'analog'
+	end
+	return 'dpad' -- padrão
+end
+
+function main.f_touchSetDir(kind)
+	local file = io.open(main.touchDirFile, 'w+')
+	if file ~= nil then
+		file:write(kind)
+		file:close()
+	end
+	if touchSetDirType ~= nil then touchSetDirType(kind == 'dpad' and 1 or 0) end
+end
+
+-- Placeholder for modes that are planned but not implemented yet.
+local function f_comingSoon()
+	return function(t, item)
+		main.f_warning(
+			'Em breve!\nPressione qualquer tecla para continuar.',
+			motif[main.group],
+			motif[main.background],
+			motif.infobox.overlay.RectData,
+			motif.infobox.title.TextSpriteData,
+			motif.infobox.text.TextSpriteData
+		)
+		return nil
+	end
+end
+main.t_itemname['tournament'] = f_comingSoon()
+main.t_itemname['achievements'] = f_comingSoon()
+main.t_itemname['online'] = f_comingSoon()
+
+-- Replaces the generated main menu by the mobile one:
+-- Quick Match, Arcade, Tournament, Extras (Online + Spectator), Training, Achievements, Settings, Exit.
+function main.f_mobileMainMenu()
+	main.f_touchSetDir(main.f_touchGetDir())
+	local upper = motif[main.group].menu.title.uppercase
+	local function name(normal, caps)
+		if upper then return caps end
+		return normal
+	end
+	local function item(itemname, normal, caps)
+		return {itemname = itemname, displayname = name(normal, caps), paramname = itemname}
+	end
+	local menu = main.menu
+	menu.items = {
+		item('freebattle', 'Partida Rápida', 'PARTIDA RÁPIDA'),
+		item('arcade', 'Arcade', 'ARCADE'),
+		item('tournament', 'Torneio', 'TORNEIO'),
+		item('extras', 'Extras', 'EXTRAS'),
+		item('training', 'Treinamento', 'TREINAMENTO'),
+		item('achievements', 'Conquistas', 'CONQUISTAS'),
+		item('options', 'Configurações', 'CONFIGURAÇÕES'),
+		item('exit', 'Sair', 'SAIR'),
+	}
+	menu.submenu = {}
+	-- Extras: Online + Spectator (Watch)
+	local extras = {title = name('Extras', 'EXTRAS'), submenu = {}, items = {}, name = 'extras'}
+	extras.items = {
+		item('online', 'Online', 'ONLINE'),
+		item('watch', 'Espectador', 'ESPECTADOR'),
+		item('back', 'Voltar', 'VOLTAR'),
+	}
+	extras.loop = main.f_createMenu(extras, false, false, true, false)
+	menu.submenu['extras'] = extras
 end
 
 function main.f_clearShuffleTables()
@@ -3644,7 +3818,13 @@ end
 -- A finger press highlights the row under it; releasing on the same row confirms it.
 -- Rows that show a value (volume, on/off...) are adjusted instead: right half = more, left half = less (hold to repeat).
 -- Dragging vertically scrolls through long lists. Anything else falls back to the generic tap/swipe in the engine.
-main.touchState = {row = nil, startY = 0, moved = false, frames = 0, adjust = false, steps = 0}
+main.touchState = {row = nil, startY = 0, moved = false, frames = 0, adjust = false, steps = 0, armed = false}
+
+-- Menus whose items are full-screen pictures (title menu and ALL of its submenus: Arcade / Versus / Network...).
+-- Their motif spacing is 0, so rows are located with this fixed grid, measured from Main_Menu.sff (1280x720 space):
+-- row N is centered at y0 + (N-1) * pitch and only the left column (x0..x1) is touchable.
+-- Every picture of that menu family shares the same grid, so one layout serves every submenu.
+main.touchPicMenu = {y0 = 173.5, pitch = 61.5, x0 = 0, x1 = 500}
 
 function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 	local down, pressed, released, mx, my, nx = getTouch()
@@ -3655,16 +3835,25 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 	end
 	touchClaim()
 	local spacing = m.item.spacing[2]
-	if spacing == nil or spacing <= 0 then
-		return nil, nil
+	local pic = (spacing == nil or spacing <= 0)
+	local P = main.touchPicMenu
+	if pic then
+		spacing = P.pitch
 	end
+	local idx = nil
+	if pic then
+		-- picture menu: row N of the picture is item N of the list
+		local k = math.floor((my - (P.y0 - P.pitch / 2)) / P.pitch) + 1
+		if k >= 1 and k <= #t and mx >= P.x0 and mx <= P.x1 and not t[k].itemname:match("^spacer%d*$") then
+			idx = k
+		end
+	else
 	-- first row currently shown on screen (same logic used by the scroll code below)
 	local maxFirst = math.max(1, #t - visible + 1)
 	local first = math.max(1, math.min(maxFirst, item - cursorPosY + 1))
 	-- center of the first visible row in motif coordinates
 	local y0 = m.pos[2] + (m.boxcursor.coords[2] + m.boxcursor.coords[4]) / 2
 	local k = math.floor((my - (y0 - spacing / 2)) / spacing) + 1
-	local idx = nil
 	if k >= 1 and k <= math.min(visible, #t) then
 		idx = first + k - 1
 		if t[idx] == nil or t[idx].itemname:match("^spacer%d*$") then
@@ -3703,6 +3892,7 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 			end
 		end
 	end
+	end
 	local result = nil
 	if pressed then
 		st.row = idx
@@ -3711,6 +3901,7 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 		st.frames = 0
 		st.steps = 0
 		st.adjust = false
+		st.armed = (idx ~= nil and idx == item)
 		if idx ~= nil then
 			if idx ~= item then
 				result = {jump = idx}
@@ -3743,12 +3934,13 @@ function main.f_touchMenuRow(t, item, cursorPosY, m, visible)
 	end
 	if released then
 		-- a tap that began and ended in the same frame still selects first; confirm only an already highlighted row
-		local current = (result ~= nil and result.jump) or item
-		if st.row ~= nil and not st.moved and not st.adjust and idx == st.row and st.row == current and not (result ~= nil and result.jump) then
+		-- first tap only highlights; confirm only when the row was ALREADY highlighted when the finger went down
+		if st.row ~= nil and st.armed and not st.moved and not st.adjust and idx == st.row then
 			touchPress('a')
 		end
 		st.row = nil
 		st.adjust = false
+		st.armed = false
 	end
 	return result, idx
 end
@@ -4219,6 +4411,15 @@ if getCommandLineValue("-p1") ~= nil and getCommandLineValue("-p2") ~= nil and g
 end
 
 main.f_loadingRefresh()
+
+-- Set to false once the engine contains the touch.go fix (touchWindowToGame): the calibration is then unnecessary.
+main.touchCalibrationEnabled = not main.touchEngineFixed
+if main.touchCalibrationEnabled and not main.touchCal.loaded then
+	local okCal, errCal = pcall(main.f_touchCalibrate)
+	if not okCal then
+		print('touch calibration: ' .. tostring(errCal))
+	end
+end
 
 if motif.attract_mode.enabled then
 	main.f_attractMode()

@@ -1378,6 +1378,12 @@ function options.f_createMenu(tbl, bool_main)
 			main.close = false
 		end
 		while true do
+			-- Android: every change is saved right away, so it survives restarting the game.
+			-- (Changes that need a restart, like the renderer, are saved too and applied on next launch.)
+			if options.modified and getRuntimeOS() == 'android' then
+				options.modified = false
+				options.f_saveCfg(false)
+			end
 			if tbl.reset then
 				tbl.reset = false
 			else
@@ -1441,7 +1447,10 @@ options.t_pt = {
 	menugame = 'Opções de Jogo',
 	menuaudio = 'Áudio',
 	menuvideo = 'Vídeo',
-	touchcontrols = 'Controles de Toque',
+	controle = 'Controle',
+	dpadtype = 'Tipo de Direcional',
+	mapping = 'Mapeamento',
+	credits = 'Créditos',
 	back = 'Voltar',
 	-- game
 	difficulty = 'Dificuldade',
@@ -1457,14 +1466,26 @@ options.t_pt = {
 	mastervolume = 'Volume Geral',
 	bgmvolume = 'Volume da Música',
 	sfxvolume = 'Volume dos Efeitos',
-	normalizechars = 'Volume Padrão dos Lutadores',
+	normalizechars = 'Volume Adaptado',
 	-- video
+	renderer = 'API Gráfica (reiniciar)',
+	msaa = 'Suavização (MSAA)',
+	model = 'Gráficos 3D',
+	enablemodelshadow = 'Sombra',
 	aspectratio = 'Proporção da Tela',
 	defaultaspect = 'Padrão',
 	stageaspect = 'Do Cenário',
 	['4x3'] = '4:3',
 	['16x9'] = '16:9',
 }
+
+options.creditsText = 'CRÉDITOS\n\n' ..
+	'I.K.E.M.E.N-Go para Android\n' ..
+	'(C) 2026 Jesuszilla, Sohil876\n\n' ..
+	'Tradução: Lasombra Demon (Espanhol), MotorRoach (Português),\n' ..
+	'Vans (Chinês e Japonês), dionednd (Filipino e Meranaw)\n\n' ..
+	'Engine original: Ikemen GO\n\n' ..
+	'Pressione qualquer tecla para voltar.'
 
 function options.f_mobileMenu()
 	local pt = options.t_pt
@@ -1531,35 +1552,70 @@ function options.f_mobileMenu()
 		pick(a, {'mastervolume', 'bgmvolume', 'sfxvolume', 'normalizechars', 'spacer', 'back'})
 		setTitle(a, 'menuaudio')
 	end
-	-- Video: only the aspect ratio makes sense on a phone
+	-- Video: graphics API (OpenGL ES / Vulkan), anti-aliasing, 3D shadow and aspect ratio
 	local v = menu.submenu.menuvideo
 	if v ~= nil then
-		pick(v, {'aspectratio', 'spacer', 'back'})
+		pick(v, {'renderer', 'msaa', 'model', 'aspectratio', 'spacer', 'back'})
 		setTitle(v, 'menuvideo')
+		local rd = v.submenu.renderer
+		if rd ~= nil then
+			pick(rd, {'gles32', 'vk13', 'spacer', 'back'})
+			setTitle(rd, 'renderer')
+		end
+		local md = v.submenu.model
+		if md ~= nil then
+			pick(md, {'enablemodelshadow', 'spacer', 'back'})
+			setTitle(md, 'model')
+		end
 		local ar = v.submenu.aspectratio
 		if ar ~= nil then
 			pick(ar, {'defaultaspect', 'stageaspect', '4x3', '16x9', 'spacer', 'back'})
 			setTitle(ar, 'aspectratio')
 		end
 	end
-	-- Touch controls editor lives here now
-	options.t_itemname['touchcontrols'] = function(t, item, cursorPosY, moveTxt)
+	-- Controle: directional type + button mapping (touch layout editor)
+	options.t_itemname['dpadtype'] = function(t, item, cursorPosY, moveTxt)
+		if getInput(-1, motif.option_info.menu.add.key, motif.option_info.menu.subtract.key, motif.option_info.menu.done.key) then
+			sndPlay(motif.Snd, motif.option_info.cursor.move.snd[1], motif.option_info.cursor.move.snd[2])
+			local kind = main.f_touchGetDir() == 'dpad' and 'analog' or 'dpad'
+			main.f_touchSetDir(kind) -- saved right away (file + Android wrapper)
+			t.items[item].vardisplay = kind == 'dpad' and 'D-pad' or 'Analógico'
+		end
+		return true
+	end
+	options.t_itemname['mapping'] = function(t, item, cursorPosY, moveTxt)
 		if getInput(-1, motif.option_info.menu.done.key) then
 			sndPlay(motif.Snd, motif.option_info.cursor.done.snd[1], motif.option_info.cursor.done.snd[2])
 			touchOpenEditor()
 		end
 		return true
 	end
-	menu.submenu['touchcontrols'] = {title = '', submenu = {}, items = {}}
-	table.insert(menu.items, {
-		itemname = 'touchcontrols',
-		displayname = pt.touchcontrols,
-		paramname = 'touchcontrols',
-		vardisplay = '',
-		selected = false,
-	})
+	local ctl = {
+		title = main.f_itemnameUpper(pt.controle, upper),
+		submenu = {},
+		items = {
+			{itemname = 'dpadtype', displayname = pt.dpadtype, paramname = 'controle_dpadtype',
+				vardisplay = main.f_touchGetDir() == 'dpad' and 'D-pad' or 'Analógico', selected = false},
+			{itemname = 'mapping', displayname = pt.mapping, paramname = 'controle_mapping', vardisplay = '', selected = false},
+			{itemname = 'spacer', displayname = '-', paramname = 'spacer', vardisplay = '', selected = false},
+			{itemname = 'back', displayname = pt.back, paramname = 'back', vardisplay = '', selected = false},
+		},
+	}
+	ctl.loop = options.f_createMenu(ctl, false)
+	menu.submenu['controle'] = ctl
+	table.insert(menu.items, {itemname = 'controle', displayname = pt.controle, paramname = 'controle', vardisplay = '', selected = false})
+	-- Credits
+	options.t_itemname['credits'] = function(t, item, cursorPosY, moveTxt)
+		if getInput(-1, motif.option_info.menu.done.key) then
+			sndPlay(motif.Snd, motif.option_info.cursor.done.snd[1], motif.option_info.cursor.done.snd[2])
+			main.f_warning(options.creditsText, motif.option_info, motif.optionbgdef)
+		end
+		return true
+	end
+	menu.submenu['credits'] = {title = '', submenu = {}, items = {}}
+	table.insert(menu.items, {itemname = 'credits', displayname = pt.credits, paramname = 'credits', vardisplay = '', selected = false})
 	-- Top level: only what matters on a phone
-	local byName = pick(menu, {'menugame', 'menuaudio', 'menuvideo', 'touchcontrols', 'spacer', 'back'})
+	local byName = pick(menu, {'menugame', 'menuaudio', 'menuvideo', 'controle', 'credits', 'spacer', 'back'})
 	if byName.back == nil then
 		menu.items[#menu.items + 1] = {itemname = 'back', displayname = pt.back, paramname = 'back', vardisplay = '', selected = false}
 	end
