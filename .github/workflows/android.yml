@@ -67,6 +67,10 @@ jobs:
       - name: Preparar wrapper com manifest atualizado
         run: |
           git clone --depth=1 -b "${{ inputs.wrapper_ref }}" "${{ inputs.wrapper_repo }}" wrapper_src
+          # Nome do app no celular
+          sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime Starlab\2|' \
+            wrapper_src/app/src/main/res/values/strings.xml
+          grep 'name="app_name"' wrapper_src/app/src/main/res/values/strings.xml
           M=wrapper_src/app/src/main/assets/manifest.txt
           if [ "${{ inputs.remove_default_content }}" = "true" ]; then
             # Tira do manifest original todos os arquivos dentro de chars/ e stages/
@@ -95,11 +99,16 @@ jobs:
             -e ANDROID_APK_REPO="/work/wrapper_src" \
             android-build
 
+      - name: Renomear APK
+        run: |
+          mv bin/ikemen-go.apk bin/AnimeStarlab.apk
+          [ -f bin/ikemen-go-beta.apk ] && mv bin/ikemen-go-beta.apk bin/AnimeStarlab-beta.apk || true
+
       - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
-          name: ikemen-go-apk
+          name: anime-starlab-apk
           path: |
-            bin/ikemen-go.apk
-            bin/ikemen-go-beta.apk
+            bin/AnimeStarlab.apk
+            bin/AnimeStarlab-beta.apk
           if-no-files-found: error
