@@ -1,5 +1,8 @@
-# Compila SOMENTE o APK Android e o disponibiliza como artefato.
+# Compila SOMENTE o APK Android com o jogo (chars, stages etc.) ja embutido.
 # Coloque este arquivo em .github/workflows/android.yml no seu fork do Ikemen-GO.
+#
+# Os dados do jogo vem de um zip anexado a uma Release do GitHub (tag "data").
+# O zip deve ter chars/, stages/, sound/... NA RAIZ (sem pasta extra por fora).
 name: android-apk
 
 on:
@@ -13,6 +16,23 @@ on:
         description: 'Branch do wrapper'
         required: true
         default: 'main'
+      data_repo:
+        description: 'Repositorio (dono/nome) que tem a Release com os dados'
+        required: true
+        default: 'SEU_USUARIO/SEU_REPO'
+      data_tag:
+        description: 'Tag da Release com os dados'
+        required: true
+        default: 'data'
+      data_asset:
+        description: 'Nome do zip anexado na Release'
+        required: true
+        default: 'data.zip'
+      remove_default_content:
+        description: 'Remover chars e stages padrao do jogo (kfm, stage0 etc.) do APK'
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   build:
@@ -26,17 +46,53 @@ jobs:
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost || true
           df -h /
 
+      - name: Baixar dados do jogo (Release)
+        env:
+          # Se data_repo for outro repo PRIVADO, crie o secret DATA_TOKEN (PAT com leitura).
+          GH_TOKEN: ${{ secrets.DATA_TOKEN != '' && secrets.DATA_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "${{ inputs.data_tag }}" \
+            --repo "${{ inputs.data_repo }}" \
+            --pattern "${{ inputs.data_asset }}" \
+            --dir /tmp --clobber
+          # Extrai na raiz do Ikemen-GO (o build.sh resolve os caminhos a partir daqui)
+          unzip -q -o "/tmp/${{ inputs.data_asset }}" -d .
+          # Lista dos arquivos do zip, usada para gerar o manifest
+          unzip -Z1 "/tmp/${{ inputs.data_asset }}" | grep -v '/$' > /tmp/data_files.txt
+          echo "Arquivos no zip: $(wc -l < /tmp/data_files.txt)"
+          if grep -q ' ' /tmp/data_files.txt; then
+            echo "::warning::Ha arquivos com espaco no nome; o build.sh divide o manifest por espaco e eles serao ignorados. Renomeie-os."
+          fi
+
+      - name: Preparar wrapper com manifest atualizado
+        run: |
+          git clone --depth=1 -b "${{ inputs.wrapper_ref }}" "${{ inputs.wrapper_repo }}" wrapper_src
+          M=wrapper_src/app/src/main/assets/manifest.txt
+          if [ "${{ inputs.remove_default_content }}" = "true" ]; then
+            # Tira do manifest original todos os arquivos dentro de chars/ e stages/
+            # (kfm, kfm720, stage0, stage1, stage3d etc.). As linhas "chars/" e "stages/"
+            # (as pastas em si) ficam. O que vier do seu zip e adicionado logo abaixo.
+            grep -v -E '^(chars|stages)/.+' "$M" > /tmp/manifest.nodefault || true
+            cp /tmp/manifest.nodefault "$M"
+            echo "Chars e stages padrao removidos do manifest."
+          fi
+          # O AssetExtractor do app so extrai arquivos LISTADOS no manifest,
+          # entao cada arquivo do zip precisa estar nele.
+          cat /tmp/data_files.txt >> "$M"
+          # Remove duplicados e linhas vazias
+          tr -s '\r' '\n' < "$M" | grep -v '^[[:space:]]*$' | sort -u > /tmp/manifest.sorted
+          cp /tmp/manifest.sorted "$M"
+          echo "Linhas no manifest final: $(wc -l < "$M")"
+
       - name: Compilar APK (Docker)
         env:
-          WRAPPER_REPO: ${{ inputs.wrapper_repo }}
-          WRAPPER_REF: ${{ inputs.wrapper_ref }}
           APP_VERSION: pessoal
         run: |
           chmod +x build/build.sh
           docker compose -f build/docker/android/docker-compose.yml build android-build
+          # /work dentro do container e a raiz do repo, entao wrapper_src fica em /work/wrapper_src
           docker compose -f build/docker/android/docker-compose.yml run --rm \
-            -e ANDROID_APK_REPO="$WRAPPER_REPO" \
-            -e ANDROID_APK_REF="$WRAPPER_REF" \
+            -e ANDROID_APK_REPO="/work/wrapper_src" \
             android-build
 
       - name: Enviar APK
