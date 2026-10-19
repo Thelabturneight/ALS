@@ -34,6 +34,8 @@ const (
 	mobileCmdBack   = 3 // param: 0 = hide the on-screen Back button (root menu), 1 = show it
 	mobileCmdTag    = 4 // param: 0 = not a Tag match, 1 = Tag match (shows the D/W swap buttons)
 	mobileCmdDir    = 5 // param: 0 = analog stick, 1 = D-pad
+	mobileCmdSize   = 6 // param: on-screen controls size in percent (60..150, 100 = default)
+	mobileCmdHide   = 7 // param: seconds without touching before the fight controls fade out (0 = never)
 )
 
 type touchSys struct {
@@ -273,7 +275,8 @@ func (s *System) touchToMotif(nx, ny float32) (float32, float32) {
 // Android bridge
 // ---------------------------------------------------------------------------
 
-// Tells the Android wrapper which controls to show: 0 = menus (touch is forwarded here), 1 = fight (virtual pad).
+// Tells the Android wrapper which controls to show: 0 = menus (touch is forwarded here), 1 = fight (virtual pad),
+// 2 = preview (controls are drawn but touch is still forwarded here, used by the size adjustment screens).
 func mobileSetMode(mode int) {
 	if touch.mode == mode {
 		return
@@ -350,7 +353,7 @@ func touchScriptInit(l *lua.LState) {
 	luaRegister(l, "touchSetMode", func(l *lua.LState) int {
 		/*Tell the Android wrapper whether the game is in menus (0) or in a fight (1).
 		@function touchSetMode
-		@tparam int mode 0 = menus, 1 = fight.*/
+		@tparam int mode 0 = menus, 1 = fight, 2 = preview (controls shown, touch goes to the menu).*/
 		mobileSetMode(int(numArg(l, 1)))
 		return 0
 	})
@@ -370,6 +373,20 @@ func touchScriptInit(l *lua.LState) {
 		@function touchSetDirType
 		@tparam int kind 0 = analog stick, 1 = D-pad.*/
 		mobileSend(mobileCmdDir, int(numArg(l, 1)))
+		return 0
+	})
+	luaRegister(l, "touchSetSize", func(l *lua.LState) int {
+		/*Set the size of the on-screen fight controls (Android wrapper). Saved by the wrapper.
+		@function touchSetSize
+		@tparam int percent Size in percent, 60..150 (100 = default).*/
+		mobileSend(mobileCmdSize, int(numArg(l, 1)))
+		return 0
+	})
+	luaRegister(l, "touchSetAutoHide", func(l *lua.LState) int {
+		/*Make the fight controls fade out after some seconds without touching them (Android wrapper).
+		@function touchSetAutoHide
+		@tparam int seconds Seconds of inactivity before hiding, 0 = never hide.*/
+		mobileSend(mobileCmdHide, int(numArg(l, 1)))
 		return 0
 	})
 	luaRegister(l, "touchOpenEditor", func(l *lua.LState) int {
