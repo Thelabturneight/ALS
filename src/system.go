@@ -357,6 +357,10 @@ type System struct {
 	gameFPS          float32
 	gameFPSprevcount uint64
 	showFPS          bool // contador de FPS no canto inferior direito (opcao "Mostrar FPS")
+	// Valor mostrado no contador: recalculado uma vez por segundo (frames contados / tempo decorrido)
+	fpsShown       int32
+	fpsFrames      int32
+	fpsWindowStart uint64
 
 	// screenshot deferral
 	isTakingScreenshot bool
@@ -908,6 +912,12 @@ func (s *System) await(fps int) bool {
 		defer gfx.BeginFrame(sys.netConnection == nil)
 	}
 
+	// Android: the surface was lost / the app came back from the background. Try to bring it back and, once it
+	// works, open a fresh frame so the next draw calls have somewhere to go.
+	if s.window.tryRecoverRendering() {
+		gfx.BeginFrame(sys.netConnection == nil)
+	}
+
 	s.runMainThreadTask()
 
 	now := time.Now()
@@ -1015,7 +1025,7 @@ func (s *System) renderFrame() {
 // Uses the debug font and the same aspect handling as the debug panels, so it
 // stays in the corner of the real screen in menus and in fights.
 func (s *System) drawFPS() {
-	if !s.showFPS || s.debugFont == nil || s.debugFont.fnt == nil || s.gameFPS <= 0 {
+	if !s.showFPS || s.debugFont == nil || s.debugFont.fnt == nil || s.fpsShown <= 0 {
 		return
 	}
 	panelState := s.captureAspectState()
@@ -1023,12 +1033,12 @@ func (s *System) drawFPS() {
 		panelState = aspectStateForSize(s.scrrect[2], s.scrrect[3])
 	}
 	scaleX, scaleY := s.debugTextScale(panelState)
-	txt := fmt.Sprintf("%d FPS", int(s.gameFPS+0.5))
+	txt := fmt.Sprintf("%d FPS", s.fpsShown)
 	// Right-aligned (align < 0): x is the right edge, in the same coordinate space used by the debug panels
 	x := (320+panelState.gameWidth)/2 - 1*panelState.widthScale
 	y := panelState.gameHeight - 1*panelState.heightScale
 	s.withAspectState(panelState, func() {
-		s.debugFont.SetColor(255, 240, 120, 255)
+		s.debugFont.SetColor(255, 255, 255, 255)
 		s.debugFont.fnt.Print(txt, x, y, s.debugFont.xscl/scaleX, s.debugFont.yscl/scaleY,
 			0, Rotation{0, 0, 0}, 0, 0, 0, -1, &s.scrrect, s.debugFont.palfx, s.debugFont.frgba)
 	})

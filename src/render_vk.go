@@ -2812,9 +2812,10 @@ func (r *Renderer_VK) RecreateSurfaceAndSwapchain() {
 
 	surface, err := sys.window.VulkanCreateSurface(r.instance)
 	if err != nil {
-		vk.DestroyInstance(r.instance, nil)
-		err = fmt.Errorf("[Recreate] vkCreateWindowSurface failed with %s", err)
-		panic(err)
+		// The new native window is probably not ready yet: keep the instance and let the caller retry later
+		LogMessage("[WARNING] [Recreate] vkCreateWindowSurface failed with %s (will retry)", err)
+		r.surfaceLost = true
+		return
 	}
 	r.surface = vk.SurfaceFromPointer(uintptr(surface))
 
@@ -5769,7 +5770,14 @@ func (r *Renderer_VK) DestroySwapchain() {
 	}
 }
 func (r *Renderer_VK) DestroyRenderTarget(renderTarget *VulkanRenderTargetInfo) {
-	vk.DestroyFramebuffer(r.device, renderTarget.framebuffer, nil)
+	// Safe to call twice (a failed surface recovery on Android is retried later)
+	if renderTarget == nil {
+		return
+	}
+	if renderTarget.framebuffer != vk.NullFramebuffer {
+		vk.DestroyFramebuffer(r.device, renderTarget.framebuffer, nil)
+		renderTarget.framebuffer = vk.NullFramebuffer
+	}
 	renderTarget.texture = nil
 }
 func (r *Renderer_VK) Destroy() {

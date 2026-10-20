@@ -37,6 +37,7 @@ const (
 	mobileCmdSize   = 6 // param: on-screen controls size in percent (60..150, 100 = default)
 	mobileCmdHide   = 7 // param: seconds without touching before the fight controls fade out (0 = never)
 	mobileCmdWatch  = 8 // param: 0 = normal match, 1 = spectator (watch) match: only the Menu button is shown
+	mobileCmdAlpha  = 9 // param: on-screen controls opacity in percent (10..100, 30 = default)
 )
 
 type touchSys struct {
@@ -386,6 +387,13 @@ func touchScriptInit(l *lua.LState) {
 		@function touchSetSize
 		@tparam int percent Size in percent, 60..150 (100 = default).*/
 		mobileSend(mobileCmdSize, int(numArg(l, 1)))
+		return 0
+	})
+	luaRegister(l, "touchSetOpacity", func(l *lua.LState) int {
+		/*Set the opacity of the on-screen controls (Android wrapper). Saved by the wrapper.
+		@function touchSetOpacity
+		@tparam int percent Opacity in percent, 10..100 (30 = default).*/
+		mobileSend(mobileCmdAlpha, int(numArg(l, 1)))
 		return 0
 	})
 	luaRegister(l, "touchSetAutoHide", func(l *lua.LState) int {

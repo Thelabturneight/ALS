@@ -6,6 +6,7 @@ import (
 	"image/draw"
 	"math"
 	"runtime"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -18,6 +19,8 @@ type Window struct {
 	closeflag       bool
 	focused         bool
 	renderingPaused bool // for Android Activity resume behavior
+	inBackground    bool      // Android: the app is in the background (do not try to bring the surface back yet)
+	surfaceRetryAt  time.Time // Android: next moment a surface recovery may be attempted
 }
 
 func (s *System) newWindow(w, h int) (*Window, error) {
@@ -368,6 +371,24 @@ func (w *Window) UpdateDebugFPS() {
 	now := sdl.GetPerformanceCounter()
 	freq := float64(sdl.GetPerformanceFrequency())
 
+	// Counter shown on screen: counts frames and refreshes the displayed number once per second
+	if sys.fpsWindowStart == 0 {
+		sys.fpsWindowStart = now
+		sys.fpsFrames = 0
+	} else {
+		sys.fpsFrames++
+		elapsed := float64(now-sys.fpsWindowStart) / freq
+		if elapsed >= 2.5 {
+			// Long pause (app in the background, loading...): discard this window instead of showing a bogus value
+			sys.fpsWindowStart = now
+			sys.fpsFrames = 0
+		} else if elapsed >= 1.0 {
+			sys.fpsShown = int32(float64(sys.fpsFrames)/elapsed + 0.5)
+			sys.fpsFrames = 0
+			sys.fpsWindowStart = now
+		}
+	}
+
 	// The first call has no previous time, so just remember "now" and wait
 	if sys.gameFPSprevcount == 0 {
 		sys.gameFPSprevcount = now
@@ -399,6 +420,27 @@ func (w *Window) UpdateDebugFPS() {
 	sys.gameFPS += (instant - sys.gameFPS) * a
 }
 
+// Android + Vulkan: brings the rendering surface back after the app returns from the background (or after the
+// surface was lost). Called once per frame from System.await(), between frames. If the attempt fails (the new
+// native window is not ready yet) it is simply retried a little later, so the screen never stays black.
+// Returns true only when the surface was recovered by this call.
+func (w *Window) tryRecoverRendering() bool {
+	if runtime.GOOS != "android" || w.inBackground {
+		return false
+	}
+	rvk, ok := gfx.(*Renderer_VK)
+	if !ok || rvk.frameOpen || !(w.renderingPaused || rvk.surfaceLost) {
+		return false
+	}
+	now := time.Now()
+	if now.Before(w.surfaceRetryAt) {
+		return false
+	}
+	w.surfaceRetryAt = now.Add(120 * time.Millisecond)
+	rvk.RecreateSurfaceAndSwapchain()
+	return !rvk.surfaceLost && !w.renderingPaused
+}
+
 func (w *Window) pollEvents() {
 	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 		switch t := event.(type) {
@@ -407,15 +449,17 @@ func (w *Window) pollEvents() {
 			switch t.Type {
 			case sdl.APP_WILLENTERBACKGROUND:
 			case sdl.APP_DIDENTERBACKGROUND:
+				w.inBackground = true
 				if rvk, ok := gfx.(*Renderer_VK); ok {
 					rvk.Await()
 					w.renderingPaused = true
 				}
 			case sdl.APP_DIDENTERFOREGROUND:
-				if rvk, ok := gfx.(*Renderer_VK); ok {
-					rvk.RecreateSurfaceAndSwapchain()
-					rvk.surfaceLost = false
-				}
+				// The surface is NOT recreated here: at this point Android may not have handed the new native
+				// window to SDL yet, and a failed attempt used to leave the screen black forever.
+				// System.await() calls tryRecoverRendering() every frame until the surface is really back.
+				w.inBackground = false
+				w.surfaceRetryAt = time.Time{}
 			}
 		case sdl.ControllerAxisEvent:
 			// FIX: Map Instance ID (t.Which) to Array Index
