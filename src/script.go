@@ -2844,12 +2844,18 @@ func systemScriptInit(l *lua.LState) {
 			}
 			mobileSetMode(0) // back to menus: show touch menu instead of the fight pad
 			mobileSetTag(0)  // hide the Tag swap buttons
+			mobileSetWatch(0)
 		}()
 		sys.keyString = ""
 		sys.keyInput = KeyUnknown
 		sys.luaDiscardDrawQueue()
 		sys.gameRunning = true
-		mobileSetMode(1) // fight: show the virtual pad
+		mobileSetMode(3) // fight: show the virtual pad (after the fight intro)
+		if sys.gameMode == "watch" {
+			mobileSetWatch(1) // spectator: only the Menu button
+		} else {
+			mobileSetWatch(0)
+		}
 		if sys.tmode[0] == TM_Tag {
 			mobileSetTag(1) // Tag match: also show the D/W character swap buttons
 		} else {
@@ -4138,6 +4144,20 @@ func systemScriptInit(l *lua.LState) {
 		}
 		sys.debugFont = ts
 		return 0
+	})
+	luaRegister(l, "setShowFPS", func(l *lua.LState) int {
+		/*Show or hide the FPS counter (bottom-right corner of the screen).
+		@function setShowFPS
+		@tparam boolean show True to show the counter.*/
+		sys.showFPS = boolArg(l, 1)
+		return 0
+	})
+	luaRegister(l, "getShowFPS", func(l *lua.LState) int {
+		/*Return whether the FPS counter is visible.
+		@function getShowFPS
+		@treturn boolean show*/
+		l.Push(lua.LBool(sys.showFPS))
+		return 1
 	})
 	luaRegister(l, "loadDebugInfo", func(l *lua.LState) int {
 		/*Register Lua functions to be called for debug info display.

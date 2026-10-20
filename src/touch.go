@@ -36,6 +36,7 @@ const (
 	mobileCmdDir    = 5 // param: 0 = analog stick, 1 = D-pad
 	mobileCmdSize   = 6 // param: on-screen controls size in percent (60..150, 100 = default)
 	mobileCmdHide   = 7 // param: seconds without touching before the fight controls fade out (0 = never)
+	mobileCmdWatch  = 8 // param: 0 = normal match, 1 = spectator (watch) match: only the Menu button is shown
 )
 
 type touchSys struct {
@@ -283,6 +284,11 @@ func mobileSetMode(mode int) {
 	}
 	touch.mode = mode
 	mobileSend(mobileCmdMode, mode)
+}
+
+// Tells the Android wrapper whether the current match is a spectator (watch) match.
+func mobileSetWatch(watch int) {
+	mobileSend(mobileCmdWatch, watch)
 }
 
 // Tells the Android wrapper whether the current match is Tag (shows the D/W swap buttons) or not.

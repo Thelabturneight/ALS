@@ -356,6 +356,7 @@ type System struct {
 	// for avg. FPS calculations
 	gameFPS          float32
 	gameFPSprevcount uint64
+	showFPS          bool // contador de FPS no canto inferior direito (opcao "Mostrar FPS")
 
 	// screenshot deferral
 	isTakingScreenshot bool
@@ -1005,6 +1006,32 @@ func (s *System) renderFrame() {
 		}
 		s.drawDebugText(logicState)
 	}
+
+	// FPS counter (optional, bottom-right corner)
+	s.drawFPS()
+}
+
+// drawFPS draws the FPS counter in the bottom-right corner of the screen.
+// Uses the debug font and the same aspect handling as the debug panels, so it
+// stays in the corner of the real screen in menus and in fights.
+func (s *System) drawFPS() {
+	if !s.showFPS || s.debugFont == nil || s.debugFont.fnt == nil || s.gameFPS <= 0 {
+		return
+	}
+	panelState := s.captureAspectState()
+	if !s.cfg.Video.KeepAspect || s.canUseFullResolutionAspect() {
+		panelState = aspectStateForSize(s.scrrect[2], s.scrrect[3])
+	}
+	scaleX, scaleY := s.debugTextScale(panelState)
+	txt := fmt.Sprintf("%d FPS", int(s.gameFPS+0.5))
+	// Right-aligned (align < 0): x is the right edge, in the same coordinate space used by the debug panels
+	x := (320+panelState.gameWidth)/2 - 1*panelState.widthScale
+	y := panelState.gameHeight - 1*panelState.heightScale
+	s.withAspectState(panelState, func() {
+		s.debugFont.SetColor(255, 240, 120, 255)
+		s.debugFont.fnt.Print(txt, x, y, s.debugFont.xscl/scaleX, s.debugFont.yscl/scaleY,
+			0, Rotation{0, 0, 0}, 0, 0, 0, -1, &s.scrrect, s.debugFont.palfx, s.debugFont.frgba)
+	})
 }
 
 func (s *System) update() bool {
