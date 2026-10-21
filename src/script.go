@@ -892,6 +892,7 @@ func systemScriptInit(l *lua.LState) {
 	triggerRedirection(l)
 	triggerFunctions(l)
 	touchScriptInit(l)
+	netExtScriptInit(l)
 	luaRegister(l, "addChar", func(l *lua.LState) int {
 		/*Add a character definition to the select screen.
 		@function addChar
