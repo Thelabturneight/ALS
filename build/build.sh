@@ -917,7 +917,7 @@ function build_sdl2_android() {
 		-DANDROID_ABI="arm64-v8a" \
 		-DANDROID_PLATFORM=android-21 \
 		-DCMAKE_INSTALL_PREFIX="$ANDROID_DEPS_PATH" \
-		-DSDL_ANDROID_PACKAGE_NAME=org.ikemen_engine.ikemen_go \
+		-DSDL_ANDROID_PACKAGE_NAME=com.labsdevproductions.als \
 		-DSDL_STATIC=OFF \
 		-DSDL_SHARED=ON \
 		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384"
