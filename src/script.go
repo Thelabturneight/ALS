@@ -1202,7 +1202,7 @@ func systemScriptInit(l *lua.LState) {
 		@treturn Anim anim Newly created animation userdata.*/
 		s, ok := toUserData(l, 1).(*Sff)
 		if !ok {
-			s = newSff()
+			s = newSff(SffTypeOther)
 			//userDataError(l, 1, s)
 		}
 		var anim *Anim
@@ -4101,7 +4101,7 @@ func systemScriptInit(l *lua.LState) {
 			}
 		}
 		if sff == nil {
-			sff = newSff()
+			sff = newSff(SffTypeOther)
 		}
 		raw, err := LoadText(def)
 		if err != nil {
@@ -6605,14 +6605,14 @@ func systemScriptInit(l *lua.LState) {
 			if l.GetTop() >= 2 {
 				isActPal = boolArg(l, 2)
 			}
-			sff, err := loadSff(strArg(l, 1), false, true, isActPal)
+			sff, err := loadSff(strArg(l, 1), SffTypeOther, true, isActPal)
 			if err != nil {
 				l.RaiseError("\nCan't load %v: %v\n", strArg(l, 1), err.Error())
 			}
 			sys.runMainThreadTask()
 			l.Push(newUserData(l, sff))
 		} else {
-			l.Push(newUserData(l, newSff()))
+			l.Push(newUserData(l, newSff(SffTypeOther)))
 		}
 		return 1
 	})
@@ -7811,6 +7811,14 @@ func triggerFunctions(l *lua.LState) {
 		l.Push(lua.LNumber(sys.debugWC.animPN + 1))
 		return 1
 	})
+	luaRegister(l, "animPrefix", func(*lua.LState) int {
+		if sys.debugWC.animFfx == "" {
+			l.Push(lua.LString("s"))
+		} else {
+			l.Push(lua.LString(sys.debugWC.animFfx))
+		}
+		return 1
+	})
 	luaRegister(l, "animTime", func(*lua.LState) int {
 		l.Push(lua.LNumber(sys.debugWC.animTime()))
 		return 1
@@ -8408,6 +8416,12 @@ func triggerFunctions(l *lua.LState) {
 				lv = lua.LNumber(e.anim.curelemtime)
 			case "animplayerno":
 				lv = lua.LNumber(e.animPN + 1)
+			case "animprefix":
+				if e.anim_ffx == "" {
+					lv = lua.LString("s")
+				} else {
+					lv = lua.LString(e.anim_ffx)
+				}
 			case "animtime":
 				lv = lua.LNumber(e.anim.AnimTime())
 			case "spriteplayerno":
@@ -9918,6 +9932,12 @@ func triggerFunctions(l *lua.LState) {
 				lv = lua.LNumber(p.animNo)
 			case "animelem":
 				lv = lua.LNumber(p.anim.curelem + 1)
+			case "animprefix":
+				if p.anim_ffx == "" {
+					lv = lua.LString("s")
+				} else {
+					lv = lua.LString(p.anim_ffx)
+				}
 			case "angle":
 				lv = lua.LNumber(p.rot.angle)
 			case "angle x":
