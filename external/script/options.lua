@@ -1484,7 +1484,6 @@ options.creditsText = 'CRÉDITOS\n\n' ..
 	'(C) 2026 Jesuszilla, Sohil876\n\n' ..
 	'Tradução: Lasombra Demon (Espanhol), MotorRoach (Português),\n' ..
 	'Vans (Chinês e Japonês), dionednd (Filipino e Meranaw)\n\n' ..
-	'Engine original: Ikemen GO\n\n' ..
 	'Pressione qualquer tecla para voltar.'
 
 function options.f_mobileMenu()
