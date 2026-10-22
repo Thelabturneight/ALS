@@ -1,0 +1,26 @@
+; Abertura do Anime LabStar (video/als_logo.webm, 4 segundos)
+[Info]
+localcoord = 320, 240
+
+[SceneDef]
+spr =
+key.skip = s, a, b, c, x, y, z
+key.cancel = m
+stopmusic = 0
+disablecancel = 0
+waitforloading = 0
+
+[Scene 0]
+end.time = 245
+clearcolor = 0, 0, 0
+bg.name = labstar
+
+[LabStarDef]
+bgclearcolor = 0, 0, 0
+
+[LabStar Logo]
+type = video
+path = als_logo.webm
+scalemode = fit
+volume = 100
+layerno = 0
