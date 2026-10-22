@@ -28,6 +28,11 @@ on:
         description: 'Nome do zip anexado na Release'
         required: true
         default: 'data.zip'
+      beta_number:
+        description: 'Numero do beta (ex.: 88). Vazio = usa o numero da execucao do workflow (github.run_number)'
+        type: string
+        required: false
+        default: ''
       final_build:
         description: 'Build FINAL: sem mensagem de log no inicio e sem botao de selecionar pasta (gera so o APK final). Desmarcado = preview/beta para continuar trabalhando'
         type: boolean
@@ -45,6 +50,14 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+
+      - name: Definir versao (Beta N)
+        run: |
+          N="${{ inputs.beta_number }}"
+          if [ -z "$N" ]; then N="${{ github.run_number }}"; fi
+          if ! [[ "$N" =~ ^[0-9]+$ ]]; then echo "::error::beta_number invalido: '$N'"; exit 1; fi
+          echo "BETA_NUMBER=$N" >> "$GITHUB_ENV"
+          echo "Versao: Beta $N"
 
       - name: Liberar espaco em disco
         run: |
@@ -85,14 +98,18 @@ jobs:
         run: |
           git clone --depth=1 -b "${{ inputs.wrapper_ref }}" "${{ inputs.wrapper_repo }}" wrapper_src
           # Nome do app no celular
-          sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime Starlab\2|' \
+          sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime LabStar\2|' \
             wrapper_src/app/src/main/res/values/strings.xml
           grep 'name="app_name"' wrapper_src/app/src/main/res/values/strings.xml
           # Nome do app no build beta (o beta tem o proprio app_name)
           if [ -f wrapper_src/app/src/beta/res/values/strings.xml ]; then
-            sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime Starlab Beta\2|' \
+            sed -i 's|\(<string name="app_name"[^>]*>\)[^<]*\(</string>\)|\1Anime LabStar Beta\2|' \
               wrapper_src/app/src/beta/res/values/strings.xml
           fi
+          # Versao do APK (o Android usa versionCode para saber qual e mais novo)
+          GRADLE=wrapper_src/app/build.gradle
+          sed -i "s|versionCode [0-9]*|versionCode $BETA_NUMBER|; s|versionName \"[^\"]*\"|versionName \"Beta $BETA_NUMBER\"|" "$GRADLE"
+          grep -E 'versionCode|versionName|targetSdkVersion|applicationId' "$GRADLE"
           # Mensagem de log no inicio: ligada nos builds de trabalho, desligada no FINAL
           BOOLS=wrapper_src/app/src/main/res/values/bools.xml
           if ! grep -q 'name="show_log_viewer"' "$BOOLS"; then
@@ -121,7 +138,8 @@ jobs:
 
       - name: Compilar APK (Docker)
         env:
-          APP_VERSION: pessoal
+          # Aparece no canto inferior da tela inicial do jogo
+          APP_VERSION: Beta ${{ env.BETA_NUMBER }}
         run: |
           chmod +x build/build.sh
           docker compose -f build/docker/android/docker-compose.yml build android-build
@@ -138,18 +156,18 @@ jobs:
           # O Docker cria os arquivos de bin/ como root; devolve ao usuario do runner
           sudo chown -R "$(id -u):$(id -g)" bin
           if [ "${{ inputs.final_build }}" = "true" ]; then
-            mv bin/ikemen-go.apk bin/AnimeStarlab.apk
+            mv bin/ikemen-go.apk bin/AnimeLabStar.apk
           else
-            mv bin/ikemen-go.apk bin/AnimeStarlab-preview.apk
-            [ -f bin/ikemen-go-beta.apk ] && mv bin/ikemen-go-beta.apk bin/AnimeStarlab-beta.apk || true
+            mv bin/ikemen-go.apk bin/AnimeLabStar-preview.apk
+            [ -f bin/ikemen-go-beta.apk ] && mv bin/ikemen-go-beta.apk bin/AnimeLabStar-beta.apk || true
           fi
 
       - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
-          name: anime-starlab-${{ inputs.final_build && 'final' || 'preview' }}
+          name: anime-labstar-${{ inputs.final_build && 'final' || 'preview' }}
           path: |
-            bin/AnimeStarlab.apk
-            bin/AnimeStarlab-preview.apk
-            bin/AnimeStarlab-beta.apk
+            bin/AnimeLabStar.apk
+            bin/AnimeLabStar-preview.apk
+            bin/AnimeLabStar-beta.apk
           if-no-files-found: error
