@@ -1452,7 +1452,7 @@ func applyCustomDefaults(m *Motif, iniFile *ini.File) {
 
 	// footer.version.text
 	if !hasUserKey(iniFile, sec, "footer.version.text") {
-		_ = SetValue(m, "title_info.footer.version.text", fmt.Sprintf("%s - %s", Version, BuildTime))
+		_ = SetValue(m, "title_info.footer.version.text", Version) // so a versao (ex.: "Beta 88"), no canto inferior da tela inicial
 	}
 
 	// footer.overlay.window
